@@ -3,19 +3,29 @@ import google.generativeai as genai
 import datetime
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="保險業務超級軍師 (自動修復版)", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 自定義 CSS ---
+# --- 自定義 CSS (這裡修復了顏色問題) ---
 st.markdown("""
 <style>
+    /* 1. 修復報告框框的顏色：強制白底黑字 */
     .report-box {
-        background-color: #f0f2f6;
-        padding: 20px;
+        background-color: #ffffff !important; /* 強制白色背景 */
+        color: #000000 !important;       /* 強制黑色文字 */
+        padding: 25px;
         border-radius: 10px;
-        border-left: 5px solid #4CAF50;
-        font-family: sans-serif;
-        line-height: 1.6;
+        border: 1px solid #e0e0e0;       /* 加個邊框讓它更明顯 */
+        border-left: 8px solid #4CAF50;  /* 左邊綠色粗線條 */
+        font-family: "Microsoft JhengHei", sans-serif; /* 優化中文字體 */
+        line-height: 1.8;                /* 行距加大更好讀 */
+        font-size: 16px;                 /* 字體放大 */
         white-space: pre-wrap;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* 加一點陰影更有質感 */
+    }
+    
+    /* 2. 讓輸入框的文字在深色模式下也能看清楚 */
+    .stTextInput input, .stTextArea textarea {
+        font-size: 16px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -46,7 +56,7 @@ if api_key:
         
         # 2. 自動選擇第一個合適的模型
         if available_models:
-            # 優先尋找 flash 或 pro，如果沒有就選第一個
+            # 優先尋找 flash 或 pro
             selected_model_name = next((m for m in available_models if 'flash' in m), None)
             if not selected_model_name:
                 selected_model_name = next((m for m in available_models if 'pro' in m), available_models[0])
@@ -55,7 +65,7 @@ if api_key:
             model = genai.GenerativeModel(selected_model_name)
             st.sidebar.success(f"✅ 已連線模型：{selected_model_name}")
         else:
-            st.error("❌ 錯誤：這組 API Key 沒有權限存取任何模型。請確認 Google AI Studio 專案設定。")
+            st.error("❌ 錯誤：這組 API Key 沒有權限存取任何模型。")
             
     except Exception as e:
         st.sidebar.error(f"連線失敗：{e}")
@@ -123,7 +133,7 @@ if submitted:
             【分析邏輯】
             1. 從「客戶說過的話」分析潛在擔憂。
             2. 提供兩個截然不同的切入方向。
-            3. 不要使用 Markdown 粗體符號，保持版面乾淨。
+            3. 不要使用 Markdown 粗體符號 (**)，請使用乾淨的純文字排版。
             
             【請依序輸出】
             1. [客戶畫像與心理分析]
