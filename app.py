@@ -5,70 +5,59 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 自定義 CSS (這裡修復了顏色問題) ---
+# --- 自定義 CSS (白底黑字版) ---
 st.markdown("""
 <style>
-    /* 1. 修復報告框框的顏色：強制白底黑字 */
     .report-box {
-        background-color: #ffffff !important; /* 強制白色背景 */
-        color: #000000 !important;       /* 強制黑色文字 */
+        background-color: #ffffff !important;
+        color: #000000 !important;
         padding: 25px;
         border-radius: 10px;
-        border: 1px solid #e0e0e0;       /* 加個邊框讓它更明顯 */
-        border-left: 8px solid #4CAF50;  /* 左邊綠色粗線條 */
-        font-family: "Microsoft JhengHei", sans-serif; /* 優化中文字體 */
-        line-height: 1.8;                /* 行距加大更好讀 */
-        font-size: 16px;                 /* 字體放大 */
+        border: 1px solid #e0e0e0;
+        border-left: 8px solid #4CAF50;
+        font-family: "Microsoft JhengHei", sans-serif;
+        line-height: 1.8;
+        font-size: 16px;
         white-space: pre-wrap;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* 加一點陰影更有質感 */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    
-    /* 2. 讓輸入框的文字在深色模式下也能看清楚 */
     .stTextInput input, .stTextArea textarea {
         font-size: 16px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 側邊欄：設定 ---
-with st.sidebar:
-    st.header("⚙️ 系統設定")
-    api_key = st.text_input("請輸入 Google API Key", type="password")
-    
-    # 顯示目前狀態
-    if api_key:
-        st.success("API Key 已輸入")
-    else:
-        st.warning("請先輸入 API Key")
+# --- 核心邏輯：自動取得 API Key ---
+# 1. 優先從保險箱 (Secrets) 拿鑰匙
+if "GOOGLE_API_KEY" in st.secrets:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    # 既然有鑰匙了，就不用顯示輸入框，直接顯示歡迎訊息
+    with st.sidebar:
+        st.success("✅ 已自動登入團隊帳號")
+else:
+    # 2. 如果沒鑰匙，才顯示輸入框
+    api_key = st.sidebar.text_input("請輸入 Google API Key", type="password")
 
-# --- 核心邏輯：自動尋找可用模型 ---
+# --- 連線模型 ---
 model = None
-
 if api_key:
     genai.configure(api_key=api_key)
-    
     try:
-        # 1. 詢問 Google 有哪些模型可以用
         available_models = []
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 available_models.append(m.name)
         
-        # 2. 自動選擇第一個合適的模型
         if available_models:
-            # 優先尋找 flash 或 pro
             selected_model_name = next((m for m in available_models if 'flash' in m), None)
             if not selected_model_name:
                 selected_model_name = next((m for m in available_models if 'pro' in m), available_models[0])
             
-            # 3. 建立模型
             model = genai.GenerativeModel(selected_model_name)
-            st.sidebar.success(f"✅ 已連線模型：{selected_model_name}")
         else:
-            st.error("❌ 錯誤：這組 API Key 沒有權限存取任何模型。")
-            
+            st.error("❌ 錯誤：API Key 無效或無權限。")
     except Exception as e:
-        st.sidebar.error(f"連線失敗：{e}")
+        st.error(f"連線失敗：{e}")
 
 # --- 主畫面 ---
 st.title("🛡️ 保險業務超級軍師")
@@ -105,15 +94,14 @@ with st.form("client_form"):
 # --- 生成結果 ---
 if submitted:
     if not api_key:
-        st.error("❌ 請先在左側欄位輸入 Google API Key")
+        st.error("❌ 請輸入 API Key 才能使用")
     elif not model:
-        st.error("❌ 無法建立模型，請檢查左側的錯誤訊息。")
+        st.error("❌ 系統連線異常")
     else:
         with st.spinner("🧠 總監正在分析中..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
-            # 將系統指令直接寫入 Prompt，確保相容性
             final_prompt = f"""
             你是一位擁有 20 年經驗的頂尖保險業務總監。
             
