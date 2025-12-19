@@ -5,7 +5,7 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 強制顯色 + 深藍橘配置 UI (CSS) ---
+# --- 🎨 深藍橘色高對比 UI (CSS) ---
 st.markdown("""
 <style>
     /* 定義配色變數 */
@@ -17,62 +17,44 @@ st.markdown("""
         --text-white: #ffffff;
     }
 
-    /* 1. 網頁全域背景 */
+    /* 全域背景 */
     .stApp {
         background-color: var(--bg-deep-blue);
     }
     
-    /* 2. 調整頂部間距 */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 5rem;
     }
 
-    /* 3. 【關鍵修復】輸入框與選單強制顯色 */
-    
-    /* 強制輸入框為白底黑字 */
-    .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+    /* 輸入框強制白底黑字 */
+    .stTextInput input, .stDateInput input, .stTextArea textarea, 
+    .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 2px solid var(--text-orange) !important;
         border-radius: 8px;
     }
 
-    /* ★★★ 解決下拉選單看不見的核心代碼 ★★★ */
-    /* 強制下拉選單的「彈出視窗 (Popover)」背景為白色 */
-    div[data-baseweb="popover"] {
+    /* 強制下拉選單顯色 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
-    
-    /* 強制下拉選單的「選項列表 (Menu)」背景為白色 */
-    div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
-    
-    /* 強制下拉選單的「每一個選項文字」為黑色 */
     div[data-baseweb="menu"] li span {
         color: #000000 !important;
     }
-    
-    /* 選項被滑鼠指到或選中時，變橘色底白字 */
-    div[data-baseweb="menu"] li[aria-selected="true"], div[data-baseweb="menu"] li:hover {
+    div[data-baseweb="menu"] li:hover, div[data-baseweb="menu"] li[aria-selected="true"] {
         background-color: var(--text-orange) !important;
         color: #ffffff !important;
     }
-    /* ★★★★★★★★★★★★★★★★★★★★★★★★★ */
 
-    /* 輸入框標籤顏色 (Label) */
+    /* 標籤顏色 */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
         color: var(--text-white) !important;
         font-size: 15px;
     }
-    
-    /* 下拉選單箭頭顏色 */
-    .stSelectbox svg {
-        fill: #000000 !important;
-    }
 
-    /* 4. 按鈕優化 */
+    /* 按鈕 */
     .stButton > button {
         width: 100%;
         background: linear-gradient(to bottom, #ff8533, var(--btn-orange));
@@ -86,7 +68,7 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    /* 5. 報告輸出框 */
+    /* 報告框 */
     .report-box {
         background-color: var(--card-blue) !important;
         color: #ffffff !important;
@@ -99,9 +81,10 @@ st.markdown("""
         white-space: pre-wrap;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         margin-top: 20px;
+        margin-bottom: 30px;
     }
     
-    /* 6. 卡片容器 */
+    /* 卡片容器 */
     .form-card {
         background-color: var(--card-blue);
         padding: 20px;
@@ -111,17 +94,22 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 7. 標題設定 */
-    h1 {
-        color: var(--text-orange) !important;
-        font-weight: 900 !important;
-        text-align: center;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    /* 對話框樣式優化 */
+    .stChatMessage {
+        background-color: var(--card-blue);
+        border: 1px solid #004080;
+        border-radius: 10px;
     }
-    h3 {
+    
+    /* 聊天輸入框優化 */
+    .stChatInput textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    /* 標題設定 */
+    h1, h2, h3 {
         color: var(--text-orange) !important;
-        font-weight: 700 !important;
-        margin-top: 0 !important;
     }
     p { color: #cccccc !important; }
     
@@ -133,7 +121,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 核心邏輯 ---
+# --- 初始化 Session State (狀態記憶) ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "current_strategy" not in st.session_state:
+    st.session_state.current_strategy = None
+
+# --- API Key 設定 ---
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
@@ -146,34 +140,26 @@ model = None
 if api_key:
     genai.configure(api_key=api_key)
     try:
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         if available_models:
-            selected_model_name = next((m for m in available_models if 'flash' in m), None)
-            if not selected_model_name:
-                selected_model_name = next((m for m in available_models if 'pro' in m), available_models[0])
-            model = genai.GenerativeModel(selected_model_name)
+            selected = next((m for m in available_models if 'flash' in m), None)
+            if not selected: selected = next((m for m in available_models if 'pro' in m), available_models[0])
+            model = genai.GenerativeModel(selected)
     except Exception as e:
         st.error(f"連線失敗：{e}")
 
-# --- 主畫面設計 ---
-
+# --- 主畫面 ---
 st.markdown("<h1>保險業務超級軍師</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 25px;'>AI 賦能．精準開發．專業領航</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 25px;'>AI 賦能．精準開發．陪練對談</p>", unsafe_allow_html=True)
 
-# 表單卡片區域
+# --- 輸入表單 ---
 with st.container():
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
     
     with st.form("client_form"):
         st.markdown("<h3>📋 客戶基本輪廓</h3>", unsafe_allow_html=True)
-        
         col1, col2 = st.columns([1, 1])
         with col1:
-            # ★ 這裡改成了 Radio (按鈕式)，手機操作更直覺，且絕對不會有下拉選單黑底的問題
             gender = st.radio("性別", ["男", "女"], horizontal=True)
         with col2:
             income = st.text_input("年收 (萬)", placeholder="例：100")
@@ -189,7 +175,6 @@ with st.container():
         
         st.markdown("---")
         st.markdown("<h3>🔍 深度分析線索</h3>", unsafe_allow_html=True)
-        
         quotes = st.text_area("🗣️ 客戶語錄 (破冰關鍵)", placeholder="例：「我覺得保險都騙人的」...", height=100)
         target_product = st.text_area("🎯 你的銷售目標", placeholder="例：美元利變型保單...", height=80)
 
@@ -198,7 +183,7 @@ with st.container():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 生成結果 ---
+# --- 邏輯處理：生成策略 ---
 if submitted:
     if not api_key:
         st.error("⚠️ 請輸入 API Key")
@@ -238,7 +223,56 @@ if submitted:
             
             try:
                 response = model.generate_content(final_prompt)
-                st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 分析完成！策略報告如下</h4>", unsafe_allow_html=True)
-                st.markdown(f'<div class="report-box">{response.text}</div>', unsafe_allow_html=True)
+                # 將結果存入 Session State，這樣才不會消失
+                st.session_state.current_strategy = response.text
+                # 清空舊的聊天紀錄，因為換新客戶了
+                st.session_state.chat_history = []
+                st.session_state.chat_history.append({"role": "assistant", "content": "策略已生成！對這份策略有任何疑問，或想練習話術，都可以直接在下方問我喔！"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
+
+# --- 顯示策略與陪練室 ---
+if st.session_state.current_strategy:
+    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 策略報告</h4>", unsafe_allow_html=True)
+    st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("<h3>🤖 總監陪練室 (針對上方策略提問)</h3>", unsafe_allow_html=True)
+
+    # 顯示歷史對話
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 聊天輸入框
+    if prompt := st.chat_input("輸入你想問的問題... (例如：這句話怎麼講更順？)"):
+        # 1. 顯示使用者輸入
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # 2. AI 回覆
+        with st.chat_message("assistant"):
+            with st.spinner("總監思考中..."):
+                # 組合 Context：策略內容 + 使用者問題
+                chat_prompt = f"""
+                你現在是針對以下這份「保險策略報告」的陪練教練。
+                
+                【策略報告內容】：
+                {st.session_state.current_strategy}
+                
+                【使用者(新人業務)的問題】：
+                {prompt}
+                
+                【你的任務】：
+                請針對上述策略報告的內容，回答新人的問題。
+                如果是要求示範話術，請給出具體、口語化的例子。
+                如果是看不懂策略，請用白話文解釋。
+                """
+                
+                try:
+                    response = model.generate_content(chat_prompt)
+                    st.markdown(response.text)
+                    st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    st.error(f"回覆失敗：{e}")
