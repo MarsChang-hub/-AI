@@ -3,7 +3,7 @@ import google.generativeai as genai
 import datetime
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="保險業務超級軍師 (自動修復版)", page_icon="🛡️", layout="wide")
 
 # --- 自定義 CSS ---
 st.markdown("""
@@ -24,15 +24,41 @@ st.markdown("""
 with st.sidebar:
     st.header("⚙️ 系統設定")
     api_key = st.text_input("請輸入 Google API Key", type="password")
-    st.info("💡 這是「萬用相容模式」，使用最穩定的 Gemini Pro 模型。")
+    
+    # 顯示目前狀態
+    if api_key:
+        st.success("API Key 已輸入")
+    else:
+        st.warning("請先輸入 API Key")
 
-# --- 核心邏輯 ---
+# --- 核心邏輯：自動尋找可用模型 ---
+model = None
+
 if api_key:
     genai.configure(api_key=api_key)
     
-    # 【關鍵修改 1】改用最經典的 gemini-pro 模型 (絕對不會 404)
-    # 注意：這裡我們先不放 system_instruction，改在下面用「手動拼接」的方式
-    model = genai.GenerativeModel("gemini-pro")
+    try:
+        # 1. 詢問 Google 有哪些模型可以用
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        # 2. 自動選擇第一個合適的模型
+        if available_models:
+            # 優先尋找 flash 或 pro，如果沒有就選第一個
+            selected_model_name = next((m for m in available_models if 'flash' in m), None)
+            if not selected_model_name:
+                selected_model_name = next((m for m in available_models if 'pro' in m), available_models[0])
+            
+            # 3. 建立模型
+            model = genai.GenerativeModel(selected_model_name)
+            st.sidebar.success(f"✅ 已連線模型：{selected_model_name}")
+        else:
+            st.error("❌ 錯誤：這組 API Key 沒有權限存取任何模型。請確認 Google AI Studio 專案設定。")
+            
+    except Exception as e:
+        st.sidebar.error(f"連線失敗：{e}")
 
 # --- 主畫面 ---
 st.title("🛡️ 保險業務超級軍師")
@@ -70,12 +96,14 @@ with st.form("client_form"):
 if submitted:
     if not api_key:
         st.error("❌ 請先在左側欄位輸入 Google API Key")
+    elif not model:
+        st.error("❌ 無法建立模型，請檢查左側的錯誤訊息。")
     else:
         with st.spinner("🧠 總監正在分析中..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
-            # 【關鍵修改 2】把系統指令直接寫進 User Prompt 裡 (Old School 寫法，相容性 100%)
+            # 將系統指令直接寫入 Prompt，確保相容性
             final_prompt = f"""
             你是一位擁有 20 年經驗的頂尖保險業務總監。
             
