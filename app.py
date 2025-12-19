@@ -63,8 +63,9 @@ if api_key:
     - 實際話術/劇本：
     """
 
+    # 修正點：改用 gemini-1.5-flash 模型，避免 404 錯誤
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
+        model_name="gemini-1.5-flash",
         system_instruction=sys_instruction
     )
 
