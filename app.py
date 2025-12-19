@@ -2,73 +2,150 @@ import streamlit as st
 import google.generativeai as genai
 import datetime
 
-# --- 設定頁面 ---
-st.set_page_config(page_title="保險業務開發雙引擎", page_icon="🛡️")
+# --- 頁面設定 ---
+st.set_page_config(page_title="保險業務超級軍師 V2.0", page_icon="🛡️", layout="wide")
 
-# --- 側邊欄：設定 API Key ---
-st.sidebar.header("⚙️ 設定")
-api_key = st.sidebar.text_input("請輸入 Google API Key", type="password")
+# --- 自定義 CSS (讓版面更乾淨) ---
+st.markdown("""
+<style>
+    .stTextArea textarea { font-size: 16px; }
+    .stTextInput input { font-size: 16px; }
+    .report-box {
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #4CAF50;
+        font-family: sans-serif;
+        line-height: 1.6;
+        white-space: pre-wrap; /* 保留換行 */
+    }
+</style>
+""", unsafe_allow_html=True)
 
+# --- 側邊欄：設定 ---
+with st.sidebar:
+    st.header("⚙️ 系統設定")
+    api_key = st.text_input("請輸入 Google API Key", type="password")
+    st.info("💡 提示：輸入越詳細的「客戶語錄」，AI 對人性分析會越精準。")
+
+# --- 核心邏輯 ---
 if api_key:
-    # 設定模型
     genai.configure(api_key=api_key)
-    
-    # 這裡放入你之前在 System Instructions 寫好的超級指令
+
+    # 這裡整合了你最新的 System Instructions
     sys_instruction = """
     你是一位擁有 20 年經驗的頂尖保險業務總監，精通「需求分析」、「風險管理」與「財務規劃」。
     你的目標是根據使用者提供的詳細客戶資料，產出高度客製化、有溫度的開發策略與建議。
-    (請將你在 AI Studio 寫好的完整指令貼在這裡，取代這段文字)
+
+    【核心思考邏輯】
+    1. 分析生命週期：推算當下最迫切風險。
+    2. 分析缺口：比對「投保史」與「應有保障」。
+    3. 分析「他/她說的話」：這最重要，請從客戶講過的話中，分析他潛在的擔憂或價值觀（例如：他說「錢難賺」可能代表保守型；說「想早點退休」代表重視現金流）。
+    4. 結合目標商品：將客戶需求與業務員「想銷售的商品」做連結。
+
+    【輸出格式規範 - 重要】
+    1. 請勿使用大量的 Markdown 符號（如 **粗體** 或 ##標題），請使用簡潔的文字排版，類似專業純文字報告。
+    2. 除非客戶生日在接下來一個月內，否則「不要」把生日當作唯一的切入點。
+    3. 必須提供「兩個」截然不同的建議方向（例如：方向 A 訴求家庭責任；方向 B 訴求資產配置）。
+
+    【請依序輸出以下區塊】
+    [客戶畫像與潛在心理分析]
+    (在此分析客戶狀態、風險，並特別解讀「客戶語錄」背後的心理含義)
+
+    [建議方向一：(請自行命名，如：感性訴求路線)]
+    - 切入點：
+    - 推薦險種組合：
+    - 實際話術/劇本：(請提供一段口語化的 LINE 或見面開場白)
+
+    [建議方向二：(請自行命名，如：理性數據路線)]
+    - 切入點：
+    - 推薦險種組合：
+    - 實際話術/劇本：
     """
-    
+
     model = genai.GenerativeModel(
         model_name="gemini-1.5-pro",
         system_instruction=sys_instruction
     )
-else:
-    st.sidebar.warning("請先輸入 API Key 才能開始使用！")
 
 # --- 主畫面 ---
-st.title("🛡️ 保險業務超級軍師")
-st.markdown("輸入客戶資料，AI 幫你生成 **風險分析** 與 **開發話術**。")
+st.title("🛡️ 保險業務超級軍師 V2.0")
+st.markdown("### 輸入客戶資料與目標，AI 幫你擬定雙軌戰略")
 
 with st.form("client_form"):
-    col1, col2 = st.columns(2)
+    # 第一排：基本個資
+    col1, col2, col3 = st.columns(3)
     with col1:
-        birthday = st.date_input("客戶生日", min_value=datetime.date(1950, 1, 1))
-        gender = st.selectbox("性別", ["男", "女"])
-        income = st.text_input("年收入 (例如：100萬)")
+        birthday = st.date_input("客戶生日", min_value=datetime.date(1950, 1, 1), value=datetime.date(1990, 1, 1))
     with col2:
-        job = st.text_input("職業 (例如：竹科工程師)")
-        interests = st.text_input("興趣 (例如：露營、煮咖啡)")
-        history = st.text_area("投保史 (例如：僅有健保、一張儲蓄險)")
-    
-    submitted = st.form_submit_button("🚀 開始分析與生成話術")
+        gender = st.selectbox("性別", ["男", "女"])
+    with col3:
+        income = st.text_input("年收入 (萬)", placeholder="例：100")
 
-# --- 生成邏輯 ---
-if submitted and api_key:
-    with st.spinner("AI 正在思考策略中..."):
-        # 計算年齡
-        today = datetime.date.today()
-        age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
-        
-        # 組合 Prompt
-        user_prompt = f"""
-        【客戶資料】
-        生日：{birthday} (約 {age} 歲)
-        性別：{gender}
-        職業：{job}
-        興趣：{interests}
-        年收入：{income}
-        投保史：{history}
-        """
-        
-        try:
-            response = model.generate_content(user_prompt)
-            st.success("分析完成！")
-            st.markdown("---")
-            st.markdown(response.text)
-        except Exception as e:
-            st.error(f"發生錯誤：{e}")
+    # 第二排：職業與興趣
+    col4, col5 = st.columns(2)
+    with col4:
+        job = st.text_input("職業 / 職位", placeholder="例：竹科工程師 / 主管")
+    with col5:
+        interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股、看韓劇")
+
+    # 第三排：投保史 (Text Area 比較好寫)
+    history = st.text_area("投保史 / 現有保障", placeholder="例：僅有公司團保，20年前買過一張儲蓄險...")
+    
+    # --- 新增的兩個關鍵欄位 ---
+    st.markdown("---")
+    st.subheader("🔍 深度分析關鍵 (新功能)")
+    
+    col_q, col_p = st.columns(2)
+    with col_q:
+        quotes = st.text_area("🗣️ 他/她曾說過的話 (客戶語錄)", 
+                             placeholder="例：「我覺得保險都騙人的」、「最近小孩剛出生開銷很大」、「擔心以後老了沒人顧」...",
+                             help="這是 AI 分析心理戰最重要的一欄！")
+    with col_p:
+        target_product = st.text_area("🎯 你想銷售的商品 / 策略", 
+                                     placeholder="例：美元利變型保單、長照險、失能險補強...",
+                                     help="告訴 AI 你想賣什麼，它會幫你找理由。")
+
+    submitted = st.form_submit_button("🚀 啟動雙軌策略分析", use_container_width=True)
+
+# --- 生成結果 ---
+if submitted:
+    if not api_key:
+        st.error("❌ 請先在左側欄位輸入 Google API Key")
+    else:
+        with st.spinner("🧠 總監正在分析客戶心理與擬定策略..."):
+            # 計算年齡
+            today = datetime.date.today()
+            age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
-elif submitted and not api_key:
-    st.error("請先在左側輸入 API Key！")
+            # 組合 Prompt
+            user_prompt = f"""
+            【客戶資料】
+            生日：{birthday} (約 {age} 歲)
+            性別：{gender}
+            職業：{job}
+            興趣：{interests}
+            年收入：{income} 萬
+            
+            【現有保障】
+            {history}
+            
+            【關鍵線索：客戶說過的話】
+            "{quotes}"
+            
+            【業務員目標商品】
+            {target_product}
+            """
+            
+            try:
+                response = model.generate_content(user_prompt)
+                
+                # 顯示結果
+                st.success("✅ 分析完成！")
+                st.markdown("### 📋 總監的策略報告")
+                
+                # 使用自定義 CSS 框框顯示內容，看起來比較乾淨
+                st.markdown(f'<div class="report-box">{response.text}</div>', unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.error(f"發生錯誤：{e}")
