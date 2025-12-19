@@ -5,19 +5,19 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 深藍 + 橘色 高對比 UI (CSS) ---
+# --- 🎨 強制顯色 + 深藍橘配置 UI (CSS) ---
 st.markdown("""
 <style>
     /* 定義配色變數 */
     :root {
-        --bg-deep-blue: #001a33;   /* 極深藍背景 */
-        --card-blue: #002b4d;      /* 卡片深藍色 */
-        --text-orange: #ff9933;    /* 亮橘色文字/邊框 */
-        --btn-orange: #ff6600;     /* 按鈕深橘色 */
-        --text-white: #ffffff;     /* 一般文字白 */
+        --bg-deep-blue: #001a33;
+        --card-blue: #002b4d;
+        --text-orange: #ff9933;
+        --btn-orange: #ff6600;
+        --text-white: #ffffff;
     }
 
-    /* 1. 網頁全域背景：深藍色 */
+    /* 1. 網頁全域背景 */
     .stApp {
         background-color: var(--bg-deep-blue);
     }
@@ -28,56 +28,71 @@ st.markdown("""
         padding-bottom: 5rem;
     }
 
-    /* 3. 【關鍵修復】輸入框優化：強制白底黑字 */
-    /* 為了解決手機下拉選單看不到字的問題，輸入框必須是亮色底 */
-    .stTextInput input, 
-    .stSelectbox div[data-baseweb="select"] > div, 
-    .stDateInput input, 
-    .stTextArea textarea {
-        background-color: #ffffff !important; /* 強制白底 */
-        color: #000000 !important;            /* 強制黑字 */
-        border: 2px solid var(--text-orange) !important; /* 橘色邊框 */
+    /* 3. 【關鍵修復】輸入框與選單強制顯色 */
+    
+    /* 強制輸入框為白底黑字 */
+    .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid var(--text-orange) !important;
         border-radius: 8px;
-        padding: 10px;
-        font-size: 16px;
+    }
+
+    /* ★★★ 解決下拉選單看不見的核心代碼 ★★★ */
+    /* 強制下拉選單的「彈出視窗 (Popover)」背景為白色 */
+    div[data-baseweb="popover"] {
+        background-color: #ffffff !important;
     }
     
-    /* 輸入框內的標籤 (Label) 顏色：改成白色或淺橘，才看得到 */
-    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label {
+    /* 強制下拉選單的「選項列表 (Menu)」背景為白色 */
+    div[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    
+    /* 強制下拉選單的「每一個選項文字」為黑色 */
+    div[data-baseweb="menu"] li span {
+        color: #000000 !important;
+    }
+    
+    /* 選項被滑鼠指到或選中時，變橘色底白字 */
+    div[data-baseweb="menu"] li[aria-selected="true"], div[data-baseweb="menu"] li:hover {
+        background-color: var(--text-orange) !important;
+        color: #ffffff !important;
+    }
+    /* ★★★★★★★★★★★★★★★★★★★★★★★★★ */
+
+    /* 輸入框標籤顏色 (Label) */
+    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
         color: var(--text-white) !important;
         font-size: 15px;
     }
     
-    /* 下拉選單的箭頭顏色 */
+    /* 下拉選單箭頭顏色 */
     .stSelectbox svg {
         fill: #000000 !important;
     }
 
-    /* 4. 按鈕優化：橘色背景 + 白字 */
+    /* 4. 按鈕優化 */
     .stButton > button {
         width: 100%;
-        background: linear-gradient(to bottom, #ff8533, var(--btn-orange)); /* 橘色漸層 */
+        background: linear-gradient(to bottom, #ff8533, var(--btn-orange));
         color: white !important;
         border: none;
         padding: 16px 0;
         font-size: 18px;
         font-weight: 800;
         border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3); /* 橘色發光陰影 */
+        box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3);
         margin-top: 10px;
     }
-    .stButton > button:hover {
-        background: #ff471a !important; /* 滑鼠移過去變紅橘色 */
-        transform: translateY(-2px);
-    }
 
-    /* 5. 報告輸出框：深藍底 + 白字 + 橘色邊框 */
+    /* 5. 報告輸出框 */
     .report-box {
         background-color: var(--card-blue) !important;
-        color: #ffffff !important; /* 白字，在深藍底上最清楚 */
+        color: #ffffff !important;
         padding: 25px;
         border-radius: 12px;
-        border: 2px solid var(--text-orange); /* 橘色邊框 */
+        border: 2px solid var(--text-orange);
         font-family: "Microsoft JhengHei", sans-serif;
         line-height: 1.8;
         font-size: 16px;
@@ -86,7 +101,7 @@ st.markdown("""
         margin-top: 20px;
     }
     
-    /* 6. 表單卡片容器：稍微亮一點的深藍色 */
+    /* 6. 卡片容器 */
     .form-card {
         background-color: var(--card-blue);
         padding: 20px;
@@ -96,21 +111,19 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 7. 標題與文字顏色設定 */
+    /* 7. 標題設定 */
     h1 {
-        color: var(--text-orange) !important; /* 標題橘色 */
+        color: var(--text-orange) !important;
         font-weight: 900 !important;
         text-align: center;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     }
     h3 {
-        color: var(--text-orange) !important; /* 副標題橘色 */
+        color: var(--text-orange) !important;
         font-weight: 700 !important;
         margin-top: 0 !important;
     }
-    p {
-        color: #cccccc !important; /* 說明文字淺灰 */
-    }
+    p { color: #cccccc !important; }
     
     /* 隱藏預設元件 */
     #MainMenu {visibility: hidden;}
@@ -160,8 +173,8 @@ with st.container():
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            # 這裡的 Selectbox 會變成白底黑字，解決看不到的問題
-            gender = st.selectbox("性別", ["男", "女"])
+            # ★ 這裡改成了 Radio (按鈕式)，手機操作更直覺，且絕對不會有下拉選單黑底的問題
+            gender = st.radio("性別", ["男", "女"], horizontal=True)
         with col2:
             income = st.text_input("年收 (萬)", placeholder="例：100")
             
