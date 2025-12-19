@@ -27,7 +27,8 @@ st.markdown("""
         padding-bottom: 5rem;
     }
 
-    /* 輸入框強制白底黑字 */
+    /* --- 1. 輸入框與選單修復 --- */
+    /* 強制白底黑字，確保手機選單看得到 */
     .stTextInput input, .stDateInput input, .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
@@ -35,8 +36,7 @@ st.markdown("""
         border: 2px solid var(--text-orange) !important;
         border-radius: 8px;
     }
-
-    /* 強制下拉選單顯色 */
+    /* 下拉選單彈出視窗強制白底黑字 */
     div[data-baseweb="popover"], div[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
@@ -47,14 +47,13 @@ st.markdown("""
         background-color: var(--text-orange) !important;
         color: #ffffff !important;
     }
-
     /* 標籤顏色 */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
         color: var(--text-white) !important;
         font-size: 15px;
     }
 
-    /* 按鈕 */
+    /* --- 2. 按鈕與報告框 --- */
     .stButton > button {
         width: 100%;
         background: linear-gradient(to bottom, #ff8533, var(--btn-orange));
@@ -67,8 +66,6 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3);
         margin-top: 10px;
     }
-
-    /* 報告框 */
     .report-box {
         background-color: var(--card-blue) !important;
         color: #ffffff !important;
@@ -83,8 +80,6 @@ st.markdown("""
         margin-top: 20px;
         margin-bottom: 30px;
     }
-    
-    /* 卡片容器 */
     .form-card {
         background-color: var(--card-blue);
         padding: 20px;
@@ -94,26 +89,38 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 對話框樣式優化 */
+    /* --- 3.【關鍵修復】對話視窗文字顏色 --- */
+    
+    /* 強制所有對話框內的文字變成白色 */
+    .stChatMessage p, .stChatMessage div {
+        color: #ffffff !important;
+    }
+    
+    /* 設定對話框的背景色 */
     .stChatMessage {
-        background-color: var(--card-blue);
-        border: 1px solid #004080;
+        background-color: var(--card-blue) !important; /* 深藍色背景 */
+        border: 1px solid #4d4d4d !important; /* 微微的邊框 */
         border-radius: 10px;
     }
     
-    /* 聊天輸入框優化 */
+    /* 針對「使用者」的對話框做區隔 (稍微亮一點的藍，或透明) */
+    div[data-testid="stChatMessage"]:nth-child(odd) {
+         background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    /* 聊天輸入框 (最下面那個) */
     .stChatInput textarea {
-        background-color: #ffffff !important;
-        color: #000000 !important;
+        background-color: #ffffff !important; /* 白底 */
+        color: #000000 !important; /* 黑字 */
+        border: 2px solid var(--text-orange) !important;
     }
 
     /* 標題設定 */
-    h1, h2, h3 {
+    h1, h2, h3, h4 {
         color: var(--text-orange) !important;
     }
     p { color: #cccccc !important; }
     
-    /* 隱藏預設元件 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -121,7 +128,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 初始化 Session State (狀態記憶) ---
+# --- 初始化 Session State ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "current_strategy" not in st.session_state:
@@ -223,9 +230,7 @@ if submitted:
             
             try:
                 response = model.generate_content(final_prompt)
-                # 將結果存入 Session State，這樣才不會消失
                 st.session_state.current_strategy = response.text
-                # 清空舊的聊天紀錄，因為換新客戶了
                 st.session_state.chat_history = []
                 st.session_state.chat_history.append({"role": "assistant", "content": "策略已生成！對這份策略有任何疑問，或想練習話術，都可以直接在下方問我喔！"})
             except Exception as e:
@@ -246,15 +251,12 @@ if st.session_state.current_strategy:
 
     # 聊天輸入框
     if prompt := st.chat_input("輸入你想問的問題... (例如：這句話怎麼講更順？)"):
-        # 1. 顯示使用者輸入
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # 2. AI 回覆
         with st.chat_message("assistant"):
             with st.spinner("總監思考中..."):
-                # 組合 Context：策略內容 + 使用者問題
                 chat_prompt = f"""
                 你現在是針對以下這份「保險策略報告」的陪練教練。
                 
