@@ -4,7 +4,7 @@ import datetime
 import sqlite3
 import json
 import pandas as pd
-import re # 引入正規表達式處理數字
+import re
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -24,7 +24,7 @@ st.markdown("""
     p, li, span, div { color: var(--text-body); }
     .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
     
-    /* --- 2. 輸入框本體 (尚未點擊時) --- */
+    /* --- 2. 輸入框本體 --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -35,22 +35,18 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* --- 3. 下拉選單 (Dropdown) 修復區 --- */
-    /* 強制彈出選單的容器背景為白色 */
+    /* --- 3. 下拉選單修復 --- */
     div[data-baseweb="popover"], div[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
-    /* 強制選項文字為黑色 */
     div[data-baseweb="menu"] div {
         color: #000000 !important;
     }
-    /* 滑鼠移過去 (Hover) 與 選中 (Selected) 的樣式 */
     li[aria-selected="true"], li[data-baseweb="option"]:hover {
-        background-color: #ffe6cc !important; /* 淺橘底 */
+        background-color: #ffe6cc !important; 
     }
     li[aria-selected="true"] div, li[data-baseweb="option"]:hover div {
-        color: #ff6600 !important; /* 深橘字 */
-        font-weight: bold;
+        color: #ff6600 !important; font-weight: bold;
     }
 
     /* 側邊欄 */
@@ -107,7 +103,7 @@ st.markdown("""
 
 st.markdown('<div class="mars-watermark">Made by Mars Chang</div>', unsafe_allow_html=True)
 
-# --- 資料庫處理 (SQLite) ---
+# --- 資料庫處理 ---
 def init_db():
     conn = sqlite3.connect('insurance_crm.db')
     c = conn.cursor()
@@ -162,19 +158,17 @@ if "current_strategy" not in st.session_state:
 if "user_key" not in st.session_state:
     st.session_state.user_key = ""
 
-# --- 工具函數：計算生命靈數 (更新版，支援純文字) ---
+# --- 工具函數 ---
 def calculate_life_path_number(birth_text):
-    # 使用正規表達式只取出數字
     digits = re.findall(r'\d', str(birth_text))
-    if not digits:
-        return 0
+    if not digits: return 0
     date_str = "".join(digits)
     total = sum(int(digit) for digit in date_str)
     while total > 9:
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- 側邊欄：名單管理 ---
+# --- 側邊欄 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
@@ -253,7 +247,6 @@ with st.form("client_form"):
         gender_idx = 0 if data.get("gender") == "男" else 1
         gender = st.radio("性別", ["男", "女"], index=gender_idx, horizontal=True)
     with c4:
-        # ★★★ 修正：改用純文字輸入框 ★★★
         birthday = st.text_input("生日 (西元年/月/日)", value=data.get("birthday", ""), placeholder="例：1990/01/01")
     with c5:
         income = st.text_input("年收 (萬)", value=data.get("income", ""))
@@ -286,7 +279,8 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8:
-        quotes = st.text_area("🗣️ 客戶語錄", value=data.get("quotes", ""), height=68)
+        # ★★★ 更新語錄標題提示 ★★★
+        quotes = st.text_area("🗣️ 客戶語錄 (痛點:愛的人、愛自己、想做的事、不安全感)", value=data.get("quotes", ""), height=68)
     with c9:
         target_product = st.text_area("🎯 銷售目標", value=data.get("target_product", ""), height=68)
 
@@ -340,17 +334,14 @@ if save_btn or analyze_btn:
                 # 計算年齡 (嘗試解析文字格式)
                 age = "未知"
                 try:
-                    # 嘗試幾種常見格式
                     for fmt in ["%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d", "%Y%m%d"]:
                         try:
                             bday_obj = datetime.datetime.strptime(birthday, fmt).date()
                             today = datetime.date.today()
                             age = today.year - bday_obj.year - ((today.month, today.day) < (bday_obj.month, bday_obj.day))
                             break
-                        except:
-                            continue
-                except:
-                    pass
+                        except: continue
+                except: pass
 
                 coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
                 has_coverage_data = any(x.strip() for x in coverage_inputs)
