@@ -5,177 +5,186 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 深藍橘色高對比 UI (CSS) ---
+# --- 🎨 設計大師級 UI (CSS) ---
 st.markdown("""
 <style>
-    /* 定義配色變數 */
+    /* --- 1. 配色系統 (Color System) --- */
     :root {
-        --bg-deep-blue: #001a33;
-        --card-blue: #002b4d;
+        --bg-main: #001222;        /* 更深邃的午夜藍背景 */
+        --glass-card: rgba(255, 255, 255, 0.03); /* 玻璃擬態背景 */
+        --border-color: rgba(255, 153, 51, 0.3); /* 橘色微光邊框 */
         --text-orange: #ff9933;
-        --btn-orange: #ff6600;
-        --text-white: #ffffff;
+        --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
+        --text-white: #f0f2f5;
+        --input-bg: #ffffff;
     }
 
-    /* 全域背景 */
+    /* --- 2. 全域重置與背景 --- */
     .stApp {
-        background-color: var(--bg-deep-blue);
+        background-color: var(--bg-main);
+        background-image: radial-gradient(circle at 50% 0%, #002a4d 0%, var(--bg-main) 70%); /* 頂部聚光燈效果 */
     }
     
+    /* 移除 Streamlit 預設討厭的頂部空白 */
     .block-container {
-        padding-top: 1rem;
-        padding-bottom: 5rem;
-    }
-    
-    /* --- Mars Chang 商標浮水印 --- */
-    .mars-watermark {
-        position: fixed;
-        top: 15px;
-        right: 25px;
-        color: var(--text-orange);
-        font-size: 14px;
-        font-weight: 600;
-        z-index: 9999;
-        font-family: 'Montserrat', sans-serif;
-        letter-spacing: 1px;
-        opacity: 0.8;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-        pointer-events: none;
-    }
-    @media (max-width: 600px) {
-        .mars-watermark {
-            font-size: 12px;
-            top: 10px;
-            right: 15px;
-        }
+        padding-top: 1.5rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px; /* 限制最大寬度，讓大螢幕看起來不散漫 */
     }
 
-    /* --- 輸入框與選單修復 --- */
+    /* --- 3. 緊湊排版核心 (Compact Layout Core) --- */
+    
+    /* 縮小所有元件之間的垂直間距 */
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.6rem !important; /* 從預設的 1rem 改為 0.6rem */
+    }
+    
+    /* 縮小每個元件容器的邊距 */
+    .stElementContainer {
+        margin-bottom: 0.3rem !important;
+    }
+
+    /* --- 4. 玻璃擬態卡片 (Glassmorphism Cards) --- */
+    .form-card {
+        background: var(--glass-card);
+        backdrop-filter: blur(10px); /* 毛玻璃效果 */
+        border: 1px solid var(--border-color);
+        padding: 20px 25px; /* 稍微縮減 Padding */
+        border-radius: 16px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        margin-bottom: 15px;
+    }
+    
+    .s-line-card {
+        background: rgba(0, 0, 0, 0.2);
+        border-left: 3px solid var(--text-orange);
+        padding: 10px 15px; /* 緊湊化 */
+        margin-bottom: 8px;
+        border-radius: 4px;
+    }
+
+    /* --- 5. 輸入元件美化 (Input Styling) --- */
+    /* 保持白底黑字以確保可讀性，但修飾細節 */
     .stTextInput input, .stDateInput input, .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
+        background-color: var(--input-bg) !important;
         color: #000000 !important;
-        border: 2px solid var(--text-orange) !important;
-        border-radius: 8px;
-    }
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
-    div[data-baseweb="menu"] li span {
-        color: #000000 !important;
-    }
-    div[data-baseweb="menu"] li:hover, div[data-baseweb="menu"] li[aria-selected="true"] {
-        background-color: var(--text-orange) !important;
-        color: #ffffff !important;
-    }
-    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
-        color: var(--text-white) !important;
+        border: 1px solid #ddd !important; /* 邊框細一點 */
+        border-radius: 6px; /* 圓角小一點，比較專業 */
+        padding: 8px 10px !important; /* 內距縮小 */
         font-size: 15px;
-    }
-
-    /* --- S線指南卡片樣式 --- */
-    .s-line-card {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-left: 4px solid var(--text-orange);
-        padding: 15px;
-        margin-bottom: 10px;
-        border-radius: 0 10px 10px 0;
-    }
-    .s-line-title {
-        color: var(--text-orange);
-        font-weight: bold;
-        font-size: 16px;
-        margin-bottom: 5px;
-    }
-    .s-line-content {
-        color: #cccccc;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-    .s-line-highlight {
-        color: #fff;
-        font-weight: bold;
+        min-height: 40px; /* 統一高度 */
     }
     
-    /* Expander 樣式優化 */
-    .streamlit-expanderHeader {
-        background-color: var(--card-blue) !important;
-        color: var(--text-white) !important;
-        border: 1px solid var(--text-orange) !important;
-        border-radius: 8px;
-        font-weight: bold;
-    }
-    .streamlit-expanderContent {
-        background-color: rgba(255,255,255,0.02) !important;
-        border-radius: 0 0 8px 8px;
-        border: 1px solid var(--text-orange);
-        border-top: none;
+    /* 聚焦時的橘色光暈 */
+    .stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
+        border-color: var(--text-orange) !important;
+        box-shadow: 0 0 0 2px rgba(255, 153, 51, 0.2) !important;
     }
 
-    /* --- 按鈕與報告框 --- */
+    /* Label 標籤美化 */
+    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
+        color: #b0c4de !important; /* 淺藍灰色，比純白更有質感 */
+        font-size: 13px !important; /* 字體縮小，更精緻 */
+        font-weight: 500;
+        margin-bottom: 2px !important;
+    }
+
+    /* 下拉選單修復 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #fff !important; }
+    div[data-baseweb="menu"] li span { color: #000 !important; }
+    div[data-baseweb="menu"] li:hover { background-color: #fff5e6 !important; }
+
+    /* --- 6. 按鈕大師級設計 --- */
     .stButton > button {
         width: 100%;
-        background: linear-gradient(to bottom, #ff8533, var(--btn-orange));
+        background: var(--btn-gradient);
         color: white !important;
         border: none;
-        padding: 16px 0;
-        font-size: 18px;
-        font-weight: 800;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3);
-        margin-top: 10px;
-    }
-    .report-box {
-        background-color: var(--card-blue) !important;
-        color: #ffffff !important;
-        padding: 25px;
-        border-radius: 12px;
-        border: 2px solid var(--text-orange);
-        font-family: "Microsoft JhengHei", sans-serif;
-        line-height: 1.8;
+        padding: 12px 0; /* 高度縮小一點 */
         font-size: 16px;
-        white-space: pre-wrap;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        margin-top: 20px;
-        margin-bottom: 30px;
+        font-weight: 600;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(255, 102, 0, 0.2);
+        transition: all 0.3s ease;
+        letter-spacing: 1px;
     }
-    .form-card {
-        background-color: var(--card-blue);
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #004080;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 102, 0, 0.4);
+    }
+
+    /* --- 7. 報告與對話框 --- */
+    .report-box {
+        background-color: #fff !important; /* 報告區改為白底，模仿紙張質感，閱讀體驗最好 */
+        color: #1a1a1a !important;
+        padding: 30px;
+        border-radius: 8px;
+        border-top: 5px solid var(--text-orange);
+        font-family: "Microsoft JhengHei", sans-serif;
+        line-height: 1.7;
+        font-size: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        margin-top: 10px;
         margin-bottom: 20px;
     }
-
-    /* --- 對話視窗 --- */
-    .stChatMessage p, .stChatMessage div {
-        color: #ffffff !important;
-    }
+    
+    /* 對話框 */
     .stChatMessage {
-        background-color: var(--card-blue) !important;
-        border: 1px solid #4d4d4d !important;
-        border-radius: 10px;
+        background-color: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
     }
-    div[data-testid="stChatMessage"]:nth-child(odd) {
-         background-color: rgba(255, 255, 255, 0.05) !important;
+    .stChatMessage p { color: #fff !important; }
+
+    /* --- 8. 文字排版 --- */
+    h1 {
+        color: var(--text-orange) !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 5px !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    .stChatInput textarea {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 2px solid var(--text-orange) !important;
+    h3 {
+        color: var(--text-white) !important;
+        font-size: 16px !important;
+        border-left: 3px solid var(--text-orange);
+        padding-left: 10px;
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    p, li { color: #ccc; font-size: 14px; }
+    
+    /* Mars Watermark */
+    .mars-watermark {
+        position: fixed;
+        top: 20px;
+        right: 30px;
+        color: rgba(255, 153, 51, 0.7);
+        font-size: 12px;
+        font-weight: 600;
+        font-family: 'Helvetica Neue', sans-serif;
+        letter-spacing: 2px;
+        z-index: 9999;
+        pointer-events: none;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 153, 51, 0.3);
+        padding: 5px 10px;
+        border-radius: 20px;
     }
 
-    /* 標題設定 */
-    h1, h2, h3, h4 {
-        color: var(--text-orange) !important;
+    /* Hide standard Streamlit clutter */
+    #MainMenu, footer, header {visibility: hidden;}
+    
+    /* Expander 調整 */
+    .streamlit-expanderHeader {
+        background-color: rgba(255,255,255,0.05) !important;
+        color: #fff !important;
+        font-size: 14px !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 6px;
     }
-    p { color: #cccccc !important; }
-    
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
 </style>
 """, unsafe_allow_html=True)
 
@@ -196,12 +205,12 @@ def calculate_life_path_number(birth_date):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- API Key 設定 ---
+# --- API Key ---
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     with st.sidebar:
-        st.markdown(f"<h3 style='color: #ff9933;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: #ff9933; border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
         api_key = st.text_input("請輸入 Google API Key", type="password")
 
 # --- 連線模型 ---
@@ -217,121 +226,91 @@ if api_key:
     except Exception as e:
         st.error(f"連線失敗：{e}")
 
-# --- 主畫面 ---
-st.markdown("<h1>保險業務超級軍師</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
+# --- 主畫面標題區 (置中且緊湊) ---
+col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
+with col_t2:
+    st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 13px; color: #8899a6; margin-bottom: 10px;'>AI 賦能．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# --- S線銷售戰略指南 (更新版) ---
-with st.expander("📖 點擊查看：S線顧問式銷售詳解 (核心心法)"):
-    st.markdown("""
-    <div class="s-line-card">
-        <div class="s-line-title">S1：取得名單 (Lead Generation)</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">核心策略</span>：定聯 (Regular Contact)。名單不是名字，是連結。<br>
-        • <span class="s-line-highlight">分類</span>：強連結、弱連結、無連結。<br>
-        • <span class="s-line-highlight">目標</span>：300顆種子計畫，把弱連結養成都強連結。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S2：約訪 (Appointment Setting)</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">核心目標</span>：只賣「見面」，不賣「保險」。<br>
-        • <span class="s-line-highlight">話術重點</span>：「學到很棒的觀念想請你聽聽看，給我回饋」。<br>
-        • <span class="s-line-highlight">反對處理</span>：沒空? -> 我配合你；電話講? -> 見面才能看肢體回饋。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S3：初步面談 (Initial Interview)</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">核心原則</span>：建立信任 (Rapport)，跟追/第三人/觀察。<br>
-        • <span class="s-line-highlight">4大與入點</span>：愛的人、愛自己、想做的事、不安全感。<br>
-        • <span class="s-line-highlight">過橋</span>：簡單問幾個問題(收入/支出/資產)進入S4。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S4：發覺需求 (Needs Discovery) ★關鍵</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">執行步驟</span>：Find (找痛點) -> Confirm (正面讚美/描述心聲) -> Expand (人生軸線/往遠處看)。<br>
-        • <span class="s-line-highlight">目標</span>：讓隱性需求變顯性痛點，不解決會很痛苦。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S5：說明建議書 (Proposal)</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">核心概念</span>：保險生活化。不講條款，講故事。<br>
-        • <span class="s-line-highlight">比喻</span>：醫療=進廠度假；長照=專業瑪麗亞；壽險=現金企業。<br>
-        • <span class="s-line-highlight">價值</span>：保住未來的賺錢能力。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S6：成交 (Closing)</div>
-        <div class="s-line-content">
-        • <span class="s-line-highlight">促成</span>：給予選擇題 (A/B方案)。<br>
-        • <span class="s-line-highlight">轉介</span>：成交後請求轉介紹，重新進入 S1 循環。
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+# --- S線銷售戰略指南 (使用 Expander 收合) ---
+with st.expander("📖 S線顧問式銷售詳解 (核心心法)"):
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        st.markdown("""
+        <div class="s-line-card"><b>S1 名單</b>：定聯、分類 (強/弱/無)、300顆種子。</div>
+        <div class="s-line-card"><b>S2 約訪</b>：賣見面不賣產品。配合時間、求回饋。</div>
+        <div class="s-line-card"><b>S3 面談</b>：Rapport、4切點、過橋。</div>
+        """, unsafe_allow_html=True)
+    with col_s2:
+        st.markdown("""
+        <div class="s-line-card"><b>S4 需求</b>：Find -> Confirm -> Expand (痛點擴大)。</div>
+        <div class="s-line-card"><b>S5 建議</b>：保險生活化。比喻 (度假/瑪麗亞/現金企業)。</div>
+        <div class="s-line-card"><b>S6 成交</b>：選擇題促成、轉介紹 (回S1)。</div>
+        """, unsafe_allow_html=True)
 
-# --- 輸入表單 ---
-with st.container():
-    st.markdown('<div class="form-card">', unsafe_allow_html=True)
+# --- 輸入表單 (使用玻璃擬態卡片包裹) ---
+st.markdown('<div class="form-card">', unsafe_allow_html=True)
+with st.form("client_form"):
+    # 第一排：姓名 + 階段 (最重要資訊)
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        client_name = st.text_input("客戶姓名", placeholder="王小明")
+    with c2:
+        s_stage = st.selectbox("📍 銷售階段 (S線)", 
+            ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"])
+
+    # 第二排：個資 (3欄更緊湊)
+    c3, c4, c5 = st.columns(3)
+    with c3:
+        gender = st.radio("性別", ["男", "女"], horizontal=True)
+    with c4:
+        birthday = st.date_input("生日", min_value=datetime.date(1950, 1, 1), value=datetime.date(1990, 1, 1))
+    with c5:
+        income = st.text_input("年收 (萬)", placeholder="100")
+
+    # 第三排：職業與興趣
+    c6, c7 = st.columns(2)
+    with c6:
+        job = st.text_input("職業 / 職位", placeholder="例：竹科工程師")
+    with c7:
+        interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股")
+
+    st.markdown("<h3>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
     
-    with st.form("client_form"):
-        col_name, col_stage = st.columns([1, 2])
-        with col_name:
-            client_name = st.text_input("客戶姓名", placeholder="例：王小明")
-        with col_stage:
-            s_stage = st.selectbox(
-                "📍 目前銷售階段 (S線)", 
-                ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"]
-            )
-
-        st.markdown("<br><h3>📋 客戶基本輪廓</h3>", unsafe_allow_html=True)
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            gender = st.radio("性別", ["男", "女"], horizontal=True)
-        with col2:
-            income = st.text_input("年收 (萬)", placeholder="例：100")
+    # 保障細項 (使用 Expander 保持介面乾淨)
+    with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
+        st.markdown("<p style='font-size:12px; color:#aaa; margin-bottom:10px;'>※ 請輸入數字 (單位已預設)</p>", unsafe_allow_html=True)
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            cov_daily = st.text_input("住院日額", placeholder="標準:4000")
+            cov_med_reim = st.text_input("醫療實支 (萬)", placeholder="標準:20")
+            cov_surg = st.text_input("定額手術", placeholder="標準:1000")
+            cov_acc_reim = st.text_input("意外實支 (萬)", placeholder="標準:10")
+        with g2:
+            cov_cancer = st.text_input("癌症一次金 (萬)", placeholder="標準:50")
+            cov_major = st.text_input("重大傷病 (萬)", placeholder="標準:30")
+            cov_radio = st.text_input("放療/次", placeholder="標準:6000")
+            cov_chemo = st.text_input("化療/次", placeholder="標準:6000")
+        with g3:
+            cov_ltc = st.text_input("長照月給付", placeholder="標準:3萬")
+            cov_dis = st.text_input("失能月給付", placeholder="標準:3萬")
+            cov_life = st.text_input("壽險 (萬)", placeholder="標準:5倍年薪")
             
-        birthday = st.date_input("客戶生日", min_value=datetime.date(1950, 1, 1), value=datetime.date(1990, 1, 1))
-        
-        st.markdown("<br><h3>💼 職業與興趣</h3>", unsafe_allow_html=True)
-        job = st.text_input("職業 / 職位", placeholder="例：竹科工程師 / 主管")
-        interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股、看韓劇")
-
-        st.markdown("<br><h3>🛡️ 保障盤點</h3>", unsafe_allow_html=True)
-        history_note = st.text_area("投保史備註 (文字描述)", placeholder="例：僅有公司團保，客戶覺得保費太貴...", height=80)
-        
-        # 詳細保障額度
-        with st.expander("➕ 點擊展開：詳細保障額度填寫 (選填)"):
-            st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字 (單位已標註)</p>", unsafe_allow_html=True)
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                cov_daily = st.text_input("住院日額", placeholder="標準：4000")
-                cov_med_reim = st.text_input("醫療實支實付 (萬)", placeholder="標準：20萬")
-                cov_surg = st.text_input("定額手術 (單位)", placeholder="標準：1000")
-                cov_acc_reim = st.text_input("意外實支實付 (萬)", placeholder="標準：10萬")
-            with c2:
-                cov_cancer = st.text_input("癌症一次金 (萬)", placeholder="標準：50萬")
-                cov_major = st.text_input("重大傷病 (萬)", placeholder="標準：30萬")
-                cov_radio = st.text_input("放療/次", placeholder="標準：6000")
-                cov_chemo = st.text_input("化療/次", placeholder="標準：6000")
-            with c3:
-                cov_ltc = st.text_input("長期照護月給付", placeholder="標準：3萬")
-                cov_dis = st.text_input("失能月給付", placeholder="標準：3萬")
-                cov_life = st.text_input("壽險 (萬)", placeholder="標準：5倍年薪")
-
-        st.markdown("---")
-        st.markdown("<h3>🔍 深度分析線索</h3>", unsafe_allow_html=True)
-        quotes = st.text_area("🗣️ 客戶語錄 (破冰關鍵)", placeholder="例：「我覺得保險都騙人的」...", height=100)
-        target_product = st.text_area("🎯 你的銷售目標", placeholder="例：美元利變型保單...", height=80)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        submitted = st.form_submit_button("🚀 啟動完整戰略分析")
+    history_note = st.text_area("投保史備註 / 其他狀況", placeholder="例：僅有團保，覺得保費貴...", height=68)
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 第四排：語錄與目標
+    c8, c9 = st.columns(2)
+    with c8:
+        quotes = st.text_area("🗣️ 客戶語錄", placeholder="破冰關鍵句...", height=68)
+    with c9:
+        target_product = st.text_area("🎯 銷售目標", placeholder="想賣什麼商品...", height=68)
 
-# --- 邏輯處理：生成策略 ---
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    submitted = st.form_submit_button("🚀 啟動教練分析")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 邏輯處理 ---
 if submitted:
     if not api_key:
         st.error("⚠️ 請輸入 API Key")
@@ -341,110 +320,84 @@ if submitted:
         life_path_num = calculate_life_path_number(birthday)
         display_name = client_name if client_name else "客戶"
         
-        # 計算壽險標準
         try:
             income_val = float(income) if income else 0
             life_ins_standard = int(income_val * 5)
         except:
             life_ins_standard = "無法計算"
 
-        with st.spinner(f"🧠 教練正在為【{display_name}】進行診斷..."):
+        with st.spinner(f"🧠 教練 Mars 正在為【{display_name}】進行診斷..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
-            # 組合詳細保障資料
             detailed_coverage = f"""
             【詳細保障額度盤點】
             - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
-            - 醫療實支實付：{cov_med_reim if cov_med_reim else '0'} 萬 (標準: 20萬)
+            - 醫療實支：{cov_med_reim if cov_med_reim else '0'} 萬 (標準: 20萬)
             - 定額手術：{cov_surg if cov_surg else '0'} (標準: 1000)
-            - 意外實支實付：{cov_acc_reim if cov_acc_reim else '0'} 萬 (標準: 10萬)
+            - 意外實支：{cov_acc_reim if cov_acc_reim else '0'} 萬 (標準: 10萬)
             - 癌症一次金：{cov_cancer if cov_cancer else '0'} 萬 (標準: 50萬)
-            - 重大傷病一次金：{cov_major if cov_major else '0'} 萬 (標準: 30萬)
+            - 重大傷病：{cov_major if cov_major else '0'} 萬 (標準: 30萬)
             - 放療/次：{cov_radio if cov_radio else '0'} (標準: 6000)
             - 化療/次：{cov_chemo if cov_chemo else '0'} (標準: 6000)
-            - 長期照護月給付：{cov_ltc if cov_ltc else '0'} (標準: 3萬)
+            - 長照月給付：{cov_ltc if cov_ltc else '0'} (標準: 3萬)
             - 失能月給付：{cov_dis if cov_dis else '0'} (標準: 3萬)
-            - 壽險：{cov_life if cov_life else '0'} 萬 (標準: 5年年薪，約 {life_ins_standard} 萬)
-            
-            【其他備註】
-            {history_note}
+            - 壽險：{cov_life if cov_life else '0'} 萬 (標準: 5年年薪)
+            【備註】{history_note}
             """
             
-            # 顧問式銷售核心邏輯 Prompt
             final_prompt = f"""
-            你現在是「教練 (Coach) Mars Chang」，一位擁有 20 年保險業經驗、精通「顧問式銷售 (Consultative Sales)」的頂尖專家。
-            請以「教練」自稱，語氣要人性化、有溫度、有經驗，像一位前輩在指導後輩。
+            你現在是「教練 (Coach) Mars Chang」。請嚴格遵守「顧問式銷售」邏輯與「Mars Chang 保障標準」。
             
-            【目前的戰略位置】
-            👉 **{s_stage}**
-            
-            【S線顧問式銷售核心邏輯 (必須嚴格遵守)】
-            S1 (名單): 強調「定聯」與「連結強度」。名單不是名字，是連結。目的是為了以後可以懶惰。
-            S2 (約訪): 只賣「見面」不賣保險。話術：「學到一個觀念想請你聽聽看，給我回饋」。拒絕處理：配合客戶時間、見面才能觀察肢體。
-            S3 (面談): 建立 Rapport，運用「4切點」(愛的人/愛自己/想做的事/不安全感)。
-            S4 (需求): 核心三步驟：Find(找痛點) -> Confirm(正面讚美/描述心聲) -> Expand(人生軸線/往遠處看)。讓隱性需求變顯性。
-            S5 (建議書): 保險生活化。不講條款，講故事。比喻：醫療=進廠度假、長照=專業瑪麗亞、壽險=現金企業。
-            S6 (成交): 給予選擇題 (A/B方案)，成交後轉介紹 (回到S1)。
-
-            【客戶關鍵密碼】
-            👉 **姓名：{display_name}**
-            👉 **生命靈數：{life_path_num} 號人**
-            
-            【客戶資料】
-            - 生日：{birthday} (約 {age} 歲)
-            - 性別：{gender}
-            - 職業：{job}
-            - 興趣：{interests}
-            - 年收入：{income} 萬
-            - 客戶說過的話："{quotes}"
-            - 業務員想賣的商品：{target_product}
-            
+            【戰略位置】{s_stage}
+            【客戶】{display_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
+            【語錄】"{quotes}"
+            【目標】{target_product}
             {detailed_coverage}
             
-            【保障缺口審查標準 (Mars Chang 教練標準)】
-            1. 住院日額：標準 4000 (單人房費)。
-            2. 醫療實支：標準 20萬 (達文西/海扶刀/標靶)。
-            3. 定額手術：標準 1000。
-            4. 意外實支：標準 10萬 (鈦合金/PRP)。
-            5. 癌症/重大傷病：標準 50萬/30萬 (緊急預備金)。
-            6. 放療/化療：標準 6000/次 (薪資損失/營養費)。
-            7. 長照/失能：標準 3萬 (外籍看護)。
-            8. 壽險：標準 5倍年薪 (留愛不留債)。
-            
-            【輸出要求】
-            1. **[客戶畫像與心理分析]**：結合 {life_path_num} 號人性格與職業風險。
-            2. **[保障缺口診斷書]**：嚴格比對 Mars Chang 標準，列出具體缺口與後果。
-            3. **[本階段 ({s_stage}) 戰略目標]**：引用上述 S 線核心邏輯 (例如 S2 就是賣見面)。
-            4. **[建議方向一]**：提供切入點與具體話術 (若是 S2 請用「求回饋」話術；S5 請用「生活化比喻」)。
-            5. **[建議方向二]**：提供另一種切入路徑。
+            【S線顧問式銷售核心】
+            S1:定聯/連結強度。S2:賣見面/求回饋。S3:4切點/Rapport。
+            S4:Find/Confirm/Expand(痛點擴大)。S5:保險生活化(比喻)。S6:選擇題/轉介紹。
+
+            【Mars Chang 缺口審查標準 (低於標準請警示)】
+            1.住院日額:4000(單人房)。2.醫療實支:20萬(達文西)。3.定額手術:1000。
+            4.意外實支:10萬(鈦合金)。5.癌/重:50/30萬(預備金)。6.放化療:6000/次。
+            7.長照失能:3萬(外勞)。8.壽險:5倍年薪。
+
+            【輸出】
+            1. [客戶畫像] ({life_path_num}號人性格+風險)
+            2. [保障缺口診斷] (嚴格比對標準)
+            3. [本階段戰略] (引用S線心法)
+            4. [建議方向一] (話術+切入)
+            5. [建議方向二] (話術+切入)
             """
             
             try:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** ({life_path_num} 號人) 完成顧問式銷售分析。請看上方報告！"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** 完成分析。報告如下："})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
-# --- 顯示策略與陪練室 ---
+# --- 結果顯示 ---
 if st.session_state.current_strategy:
-    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 教練戰略報告</h4>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown(f"<h3 style='text-align: center; border:none;'>✅ 教練戰略報告</h3>", unsafe_allow_html=True)
     
-    with st.expander("📝 點擊這裡：複製完整報告 (純文字版)"):
+    with st.expander("📝 複製完整報告 (純文字版)"):
         st.code(st.session_state.current_strategy, language="markdown")
     
+    # 報告區塊改用白底黑字，確保閱讀體驗
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
-    st.markdown("---")
-    st.markdown("<h3>🤖 教練陪練室 (針對上方策略提問)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入你想問的問題... (例如：S2如果他說沒空怎麼回？)"):
+    if prompt := st.chat_input("輸入問題... (例如：這個缺口怎麼講更順？)"):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -452,27 +405,16 @@ if st.session_state.current_strategy:
         with st.chat_message("assistant"):
             with st.spinner("教練思考中..."):
                 chat_prompt = f"""
-                你現在是「教練 (Coach) Mars Chang」。請依照以下「保險策略報告」內容指導新人。
-                嚴格遵守「顧問式銷售 S 線」邏輯。
-                
-                【策略報告內容】：
-                {st.session_state.current_strategy}
-                
-                【新人問題】：
-                {prompt}
-                
-                【教練任務】：
-                請以過來人的經驗（人性化、經驗法則）回答。
-                若是 S2 問題，強調「配合客戶時間」；若是 S5 問題，強調「比喻故事」。
+                你是 Coach Mars Chang。依據報告回答新人問題。
+                報告：{st.session_state.current_strategy}
+                問題：{prompt}
+                任務：人性化指導，若問S5請用比喻，若問缺口請強調 Mars 標準。
                 """
-                
                 try:
                     response = model.generate_content(chat_prompt)
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                    
-                    with st.expander("📝 複製這個回覆"):
+                    with st.expander("📝 複製回覆"):
                         st.code(response.text, language="markdown")
-                        
                 except Exception as e:
                     st.error(f"回覆失敗：{e}")
