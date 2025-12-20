@@ -8,16 +8,13 @@ st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", l
 # --- 🎨 視覺高亮與高對比 UI (CSS) ---
 st.markdown("""
 <style>
-    /* --- 1. 配色系統 (Color System) --- */
+    /* --- 1. 配色系統 --- */
     :root {
         --bg-main: #001222;        /* 極深午夜藍 */
-        --glass-card: rgba(255, 255, 255, 0.05); /* 卡片背景 */
-        --border-color: #ff9933;   /* 橘色邊框 */
+        --glass-card: rgba(255, 255, 255, 0.05);
         --text-orange: #ff9933;    /* 橘色文字 */
         --text-body: #e0e0e0;      /* 亮銀色 */
         --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
-        --input-bg: #ffffff;
-        --input-text: #000000;
     }
 
     /* --- 2. 全域設定 --- */
@@ -25,6 +22,7 @@ st.markdown("""
         background-color: var(--bg-main);
     }
     
+    /* 強制全域文字顏色 (除了報告框與輸入框) */
     p, li, span, div {
         color: var(--text-body);
     }
@@ -39,60 +37,76 @@ st.markdown("""
     div[data-testid="stVerticalBlock"] { gap: 0.6rem !important; }
     .stElementContainer { margin-bottom: 0.3rem !important; }
 
-    /* --- 4. 輸入元件優化 --- */
-    .stTextInput input, .stDateInput input, .stTextArea textarea, 
+    /* --- 4. 輸入元件「絕對顯色」修復 (核心修改區) --- */
+    
+    /* A. 主輸入框 (尚未點擊時的樣子) */
+    .stTextInput input, 
+    .stDateInput input, 
+    .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
+        background-color: #ffffff !important; /* 絕對白底 */
+        color: #000000 !important;            /* 絕對黑字 */
+        -webkit-text-fill-color: #000000 !important; /* 強制 Chrome 內核黑字 */
+        caret-color: #ff9933 !important;      /* 游標顏色 */
         border: 1px solid #ddd !important;
         border-radius: 6px;
-        font-weight: 500;
     }
-    
+
+    /* B. 下拉選單「彈出視窗」 (點擊後出現的選單) */
+    div[data-baseweb="popover"],
+    div[data-baseweb="menu"],
+    ul[data-baseweb="menu"] {
+        background-color: #ffffff !important; /* 選單背景絕對是白 */
+    }
+
+    /* C. 選項文字 (下拉選單裡的每一個選項) */
+    li[data-baseweb="option"] div,
+    li[data-baseweb="option"] span,
+    div[data-baseweb="menu"] div,
+    div[data-baseweb="menu"] span {
+        color: #000000 !important; /* 選項文字絕對是黑 */
+        background-color: transparent !important; /* 避免背景干擾 */
+    }
+
+    /* D. 選項「滑鼠移過去」或「選中」的狀態 */
+    li[aria-selected="true"],
+    li[data-baseweb="option"]:hover {
+        background-color: #fff5e6 !important; /* 淺橘色背景 */
+        color: #ff6600 !important;            /* 深橘色文字 */
+    }
+    /* 選中狀態下的內部文字也變色 */
+    li[aria-selected="true"] div,
+    li[data-baseweb="option"]:hover div {
+        color: #ff6600 !important;
+    }
+
+    /* E. 標籤 Label (輸入框上面的小標題) */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
         color: #ffffff !important;
         font-size: 14px !important;
         font-weight: 600;
         letter-spacing: 0.5px;
     }
-
-    /* ★★★ 關鍵修復：S線下拉選單強制顯色 ★★★ */
-    /* 1. 設定彈出視窗背景為純白 */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
     
-    /* 2. 強制所有選項文字為純黑 (包含 div, span, li) */
-    div[data-baseweb="popover"] div, 
-    div[data-baseweb="popover"] span,
-    div[data-baseweb="popover"] li,
-    div[data-baseweb="menu"] div,
-    div[data-baseweb="menu"] span,
-    div[data-baseweb="menu"] li {
-        color: #000000 !important;
+    /* F. 下拉選單右邊的箭頭 */
+    .stSelectbox svg {
+        fill: #000000 !important;
     }
-    
-    /* 3. 滑鼠移過去的高亮效果 (淺橘色底) */
-    div[data-baseweb="menu"] li:hover,
-    div[data-baseweb="menu"] li[aria-selected="true"] {
-        background-color: #fff5e6 !important;
-        color: #000000 !important;
-    }
-    /* ★★★★★★★★★★★★★★★★★★★★★★★★★★★ */
 
-    /* --- 5. 報告框 --- */
+    /* --- 5. 報告框 (最易讀的白底黑字) --- */
     .report-box {
         background-color: #ffffff !important;
         color: #000000 !important;
         padding: 30px;
         border-radius: 8px;
         border-top: 6px solid var(--text-orange);
-        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+        font-family: "Microsoft JhengHei", sans-serif;
         line-height: 1.8;
         font-size: 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         margin-top: 15px;
     }
+    /* 強制報告框內所有元素為黑色 */
     .report-box p, .report-box li, .report-box strong, .report-box span, .report-box table {
         color: #000000 !important; 
     }
@@ -113,7 +127,6 @@ st.markdown("""
         padding: 20px;
         border-radius: 12px;
     }
-    
     .s-line-card {
         background: rgba(0,0,0,0.3);
         border-left: 3px solid var(--text-orange);
@@ -121,7 +134,7 @@ st.markdown("""
         margin-bottom: 5px;
     }
     .s-line-highlight { color: #fff !important; font-weight: bold; }
-
+    
     .stButton > button {
         background: var(--btn-gradient);
         color: white !important;
@@ -129,7 +142,6 @@ st.markdown("""
         font-weight: bold;
         letter-spacing: 1px;
     }
-    
     h1, h2, h3 { color: var(--text-orange) !important; }
 
     /* Mars Watermark */
@@ -141,7 +153,6 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
-
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
@@ -213,7 +224,6 @@ with st.form("client_form"):
     with c1:
         client_name = st.text_input("客戶姓名", placeholder="王小明")
     with c2:
-        # 下拉選單
         s_stage = st.selectbox("📍 銷售階段 (S線)", 
             ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"])
 
