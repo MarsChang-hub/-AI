@@ -26,6 +26,30 @@ st.markdown("""
         padding-top: 1rem;
         padding-bottom: 5rem;
     }
+    
+    /* --- NEW: Mars 商標浮水印樣式 --- */
+    .mars-watermark {
+        position: fixed; /* 固定定位，釘在螢幕上 */
+        top: 15px;       /* 距離頂部 */
+        right: 25px;     /* 距離右側 */
+        color: var(--text-orange); /* 使用主題橘色 */
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 9999;   /* 保證在最上層 */
+        font-family: 'Montserrat', sans-serif; /* 選個有質感的英文字體 */
+        letter-spacing: 1px; /* 增加字距，提升高級感 */
+        opacity: 0.8;    /* 稍微透明，不要太搶戲 */
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5); /* 加一點陰影增加立體感 */
+        pointer-events: none; /* 讓滑鼠可以穿透它點擊下方的東西 */
+    }
+    /* 手機版微調 */
+    @media (max-width: 600px) {
+        .mars-watermark {
+            font-size: 12px;
+            top: 10px;
+            right: 15px;
+        }
+    }
 
     /* --- 輸入框與選單修復 --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, 
@@ -152,6 +176,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- 插入 Mars 商標 (在 CSS 之後立即執行) ---
+st.markdown('<div class="mars-watermark">Made by Mars</div>', unsafe_allow_html=True)
+
+
 # --- 初始化 Session State ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -207,7 +235,7 @@ with st.container():
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
     
     with st.form("client_form"):
-        # 1. 新增：客戶姓名
+        # 客戶姓名與階段
         col_name, col_stage = st.columns([1, 2])
         with col_name:
             client_name = st.text_input("客戶姓名", placeholder="例：王小明")
@@ -234,7 +262,7 @@ with st.container():
         # 保留原本的文字備註區
         history_note = st.text_area("投保史備註 (文字描述)", placeholder="例：僅有公司團保，客戶覺得保費太貴...", height=80)
         
-        # 2. 詳細保障額度 (更新標籤)
+        # 詳細保障額度
         with st.expander("➕ 點擊展開：詳細保障額度填寫 (選填)"):
             st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字或單位 (例: 2000, 50萬)</p>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
@@ -246,7 +274,6 @@ with st.container():
             with c2:
                 cov_cancer = st.text_input("癌症一次金", placeholder="例：100萬")
                 cov_major = st.text_input("重大傷病", placeholder="例：100萬")
-                # 更新標籤
                 cov_radio = st.text_input("放療/次", placeholder="例：5000")
                 cov_chemo = st.text_input("化療/次", placeholder="例：5000")
             with c3:
@@ -272,7 +299,6 @@ if submitted:
         st.error("⚠️ 系統連線異常")
     else:
         life_path_num = calculate_life_path_number(birthday)
-        # 處理姓名
         display_name = client_name if client_name else "客戶"
         
         with st.spinner(f"🧠 正在為【{display_name}】運算戰略..."):
@@ -345,11 +371,10 @@ if submitted:
 if st.session_state.current_strategy:
     st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 戰略與健診報告</h4>", unsafe_allow_html=True)
     
-    # 3. 新增：一鍵複製區塊 (使用 st.code 來實現複製按鈕)
+    # 一鍵複製區塊
     with st.expander("📝 點擊這裡：複製完整報告 (純文字版)"):
         st.code(st.session_state.current_strategy, language="markdown")
     
-    # 顯示漂亮的渲染版報告
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("---")
@@ -386,7 +411,7 @@ if st.session_state.current_strategy:
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
-                    # 聊天回覆也增加複製按鈕
+                    # 聊天回覆複製按鈕
                     with st.expander("📝 複製這個回覆"):
                         st.code(response.text, language="markdown")
                         
