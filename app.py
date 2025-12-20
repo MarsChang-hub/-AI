@@ -34,7 +34,7 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* 下拉選單修復 */
+    /* 下拉選單與日曆修復 */
     div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
     div[data-baseweb="menu"] div { color: #000000 !important; }
     li[aria-selected="true"], li[data-baseweb="option"]:hover { background-color: #ffe6cc !important; }
@@ -207,8 +207,7 @@ with col_t2:
     st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>CRM 雲端版．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# --- API Key 設定與模型初始化 (★關鍵修復★) ---
-# 將模型初始化移至全域，確保對話框隨時可用
+# --- API Key 設定與模型初始化 ---
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
@@ -218,14 +217,12 @@ model = None
 if api_key:
     genai.configure(api_key=api_key)
     try:
-        # 自動選擇可用模型 (修復 404 錯誤)
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         selected_model = next((m for m in available_models if 'flash' in m), None)
         if not selected_model:
             selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
         model = genai.GenerativeModel(selected_model)
     except:
-        # 備用方案
         model = genai.GenerativeModel('gemini-pro')
 
 # --- 表單 ---
@@ -321,7 +318,6 @@ if save_btn or analyze_btn:
             else:
                 life_path_num = calculate_life_path_number(birthday)
                 
-                # 計算年齡
                 age = "未知"
                 try:
                     for fmt in ["%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d", "%Y%m%d"]:
@@ -411,34 +407,43 @@ if st.session_state.current_strategy:
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # ★★★ 新增：對話紀錄收合區 (預設展開) ★★★
+    with st.expander("💬 對話紀錄 (點擊收合)", expanded=True):
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+                # 每一則對話都有複製按鈕
+                if message["role"] == "assistant":
+                    with st.expander("📝 複製此回覆"):
+                        st.code(message["content"], language="markdown")
 
     if prompt := st.chat_input("輸入問題..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            # ★★★ 關鍵修正：確保 model 在這裡可用 ★★★
-            if not model:
-                st.error("請先輸入 API Key 才能啟用教練陪練")
-            else:
-                with st.spinner("教練思考中..."):
-                    chat_prompt = f"""
-                    你是 Coach Mars Chang。
-                    報告：{st.session_state.current_strategy}
-                    問題：{prompt}
-                    任務：人性化指導。
-                    """
-                    try:
-                        response = model.generate_content(chat_prompt)
-                        st.markdown(response.text)
-                        st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                        current_data = st.session_state.current_client_data
-                        if current_data:
-                            current_data['chat_history'] = st.session_state.chat_history
-                            save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
-                    except Exception as e:
-                        st.error(f"回覆失敗：{e}")
+        # 注意：由於 chat_input 位於底部，輸入後畫面會刷新，顯示在上面的收合區中
+        
+        # 為了避免畫面跳動太快，這裡先不手動顯示 user message，而是等待 rerun
+        # 但 Streamlit 機制是 rerun 後才會執行下面的 code，所以...
+        
+        if not model:
+            st.error("請先輸入 API Key 才能啟用教練陪練")
+        else:
+            with st.spinner("教練思考中..."):
+                chat_prompt = f"""
+                你是 Coach Mars Chang。
+                報告：{st.session_state.current_strategy}
+                問題：{prompt}
+                任務：人性化指導。
+                """
+                try:
+                    response = model.generate_content(chat_prompt)
+                    st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                    
+                    # ★★★ 自動存檔：對話後立即更新資料庫 ★★★
+                    current_data = st.session_state.current_client_data
+                    if current_data:
+                        current_data['chat_history'] = st.session_state.chat_history
+                        save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
+                    
+                    st.rerun() # 強制刷新以顯示最新對話
+                except Exception as e:
+                    st.error(f"回覆失敗：{e}")
