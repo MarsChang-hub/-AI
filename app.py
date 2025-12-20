@@ -9,12 +9,11 @@ import re
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 下拉顯色修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 底層視覺修復) ---
 st.markdown("""
 <style>
-    /* --- 1. 全域配色 --- */
     :root {
-        --bg-main: #001222;        /* 極深午夜藍 */
+        --bg-main: #001222;
         --glass-card: rgba(255, 255, 255, 0.05);
         --text-orange: #ff9933;
         --text-body: #e0e0e0;
@@ -24,7 +23,7 @@ st.markdown("""
     p, li, span, div { color: var(--text-body); }
     .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
     
-    /* --- 2. 輸入框本體 --- */
+    /* 輸入框絕對顯色 */
     .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -35,19 +34,11 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* --- 3. 下拉選單修復 --- */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
-    div[data-baseweb="menu"] div {
-        color: #000000 !important;
-    }
-    li[aria-selected="true"], li[data-baseweb="option"]:hover {
-        background-color: #ffe6cc !important; 
-    }
-    li[aria-selected="true"] div, li[data-baseweb="option"]:hover div {
-        color: #ff6600 !important; font-weight: bold;
-    }
+    /* 下拉選單修復 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
+    div[data-baseweb="menu"] div { color: #000000 !important; }
+    li[aria-selected="true"], li[data-baseweb="option"]:hover { background-color: #ffe6cc !important; }
+    li[aria-selected="true"] div, li[data-baseweb="option"]:hover div { color: #ff6600 !important; font-weight: bold; }
 
     /* 側邊欄 */
     section[data-testid="stSidebar"] {
@@ -92,12 +83,7 @@ st.markdown("""
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
     #MainMenu, footer, header {visibility: hidden;}
-    
-    /* Expander */
-    .streamlit-expanderHeader {
-        color: #ffffff !important;
-        font-weight: bold;
-    }
+    .streamlit-expanderHeader { color: #ffffff !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -221,11 +207,26 @@ with col_t2:
     st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>CRM 雲端版．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# API Key
+# --- API Key 設定與模型初始化 (★關鍵修復★) ---
+# 將模型初始化移至全域，確保對話框隨時可用
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
+
+model = None
+if api_key:
+    genai.configure(api_key=api_key)
+    try:
+        # 自動選擇可用模型 (修復 404 錯誤)
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        selected_model = next((m for m in available_models if 'flash' in m), None)
+        if not selected_model:
+            selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
+        model = genai.GenerativeModel(selected_model)
+    except:
+        # 備用方案
+        model = genai.GenerativeModel('gemini-pro')
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -279,7 +280,6 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8:
-        # ★★★ 更新語錄標題提示 ★★★
         quotes = st.text_area("🗣️ 客戶語錄 (痛點:愛的人、愛自己、想做的事、不安全感)", value=data.get("quotes", ""), height=68)
     with c9:
         target_product = st.text_area("🎯 銷售目標", value=data.get("target_product", ""), height=68)
@@ -316,22 +316,12 @@ if save_btn or analyze_btn:
         st.success(f"✅ {client_name} 的資料已更新！")
         
         if analyze_btn:
-            if not api_key:
-                st.error("⚠️ 請輸入 API Key")
+            if not model:
+                st.error("⚠️ 系統連線異常，請檢查 API Key")
             else:
-                genai.configure(api_key=api_key)
-                try:
-                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    selected_model = next((m for m in available_models if 'flash' in m), None)
-                    if not selected_model:
-                        selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
-                    model = genai.GenerativeModel(selected_model)
-                except:
-                    model = genai.GenerativeModel('gemini-pro')
-
                 life_path_num = calculate_life_path_number(birthday)
                 
-                # 計算年齡 (嘗試解析文字格式)
+                # 計算年齡
                 age = "未知"
                 try:
                     for fmt in ["%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d", "%Y%m%d"]:
@@ -431,20 +421,24 @@ if st.session_state.current_strategy:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("教練思考中..."):
-                chat_prompt = f"""
-                你是 Coach Mars Chang。
-                報告：{st.session_state.current_strategy}
-                問題：{prompt}
-                任務：人性化指導。
-                """
-                try:
-                    response = model.generate_content(chat_prompt)
-                    st.markdown(response.text)
-                    st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                    current_data = st.session_state.current_client_data
-                    if current_data:
-                        current_data['chat_history'] = st.session_state.chat_history
-                        save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
-                except Exception as e:
-                    st.error(f"回覆失敗：{e}")
+            # ★★★ 關鍵修正：確保 model 在這裡可用 ★★★
+            if not model:
+                st.error("請先輸入 API Key 才能啟用教練陪練")
+            else:
+                with st.spinner("教練思考中..."):
+                    chat_prompt = f"""
+                    你是 Coach Mars Chang。
+                    報告：{st.session_state.current_strategy}
+                    問題：{prompt}
+                    任務：人性化指導。
+                    """
+                    try:
+                        response = model.generate_content(chat_prompt)
+                        st.markdown(response.text)
+                        st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                        current_data = st.session_state.current_client_data
+                        if current_data:
+                            current_data['chat_history'] = st.session_state.chat_history
+                            save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
+                    except Exception as e:
+                        st.error(f"回覆失敗：{e}")
