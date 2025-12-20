@@ -5,13 +5,13 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 深藍專業版 UI (CSS) ---
+# --- 🎨 深藍專業版 UI + 暴力顯色修復 (CSS) ---
 st.markdown("""
 <style>
     /* --- 1. 配色系統 (回歸深藍) --- */
     :root {
         --bg-main: #001222;        /* 極深午夜藍 */
-        --glass-card: rgba(255, 255, 255, 0.05); /* 玻璃質感卡片 */
+        --glass-card: rgba(255, 255, 255, 0.05);
         --text-orange: #ff9933;    /* 橘色高亮 */
         --text-body: #e0e0e0;      /* 亮銀色文字 */
         --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
@@ -22,7 +22,7 @@ st.markdown("""
         background-color: var(--bg-main);
     }
     
-    /* 讓深色背景上的文字變亮 */
+    /* 全域文字顏色 */
     p, li, span, div {
         color: var(--text-body);
     }
@@ -33,17 +33,58 @@ st.markdown("""
         max-width: 1200px;
     }
 
-    /* --- 3. 輸入元件絕對顯色 (白底黑字) --- */
-    /* 這是解決「看不到字」的最關鍵設定 */
-    .stTextInput input, .stDateInput input, .stTextArea textarea, 
+    /* --- 3. 輸入元件絕對顯色 (核心修復區) --- */
+    
+    /* A. 設定所有輸入框背景為純白 */
+    .stTextInput input, 
+    .stDateInput input, 
+    .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
-        background-color: #ffffff !important; /* 絕對白底 */
-        color: #000000 !important;            /* 絕對黑字 */
+        background-color: #ffffff !important;
         border: 1px solid #ff9933 !important; /* 橘色邊框 */
         border-radius: 6px;
     }
 
-    /* 標籤文字 (Label) */
+    /* B. 強制輸入框內的「輸入文字」為黑色 */
+    .stTextInput input, .stDateInput input, .stTextArea textarea {
+        color: #000000 !important;
+    }
+
+    /* ★★★ C. 下拉選單 (Selectbox) 顯示框文字修復 ★★★ */
+    /* 這是「選完後」看不到字的原因：被全域淺色字覆蓋了。這裡強制變黑 */
+    .stSelectbox div[data-baseweb="select"] div {
+        color: #000000 !important;
+    }
+    .stSelectbox div[data-baseweb="select"] span {
+        color: #000000 !important;
+    }
+    /* 下拉箭頭也要變黑 */
+    .stSelectbox svg {
+        fill: #000000 !important;
+    }
+
+    /* ★★★ D. 下拉選單 (Dropdown) 彈出列表修復 ★★★ */
+    /* 這是「下拉時」看不到字的原因 */
+    
+    /* 1. 彈出層背景設為白色 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    
+    /* 2. 選項文字強制變黑 */
+    div[data-baseweb="popover"] li, div[data-baseweb="popover"] div, div[data-baseweb="popover"] span {
+        color: #000000 !important;
+    }
+    
+    /* 3. 滑鼠移過去 (Hover) 或 選中 (Selected) 的樣式 */
+    li[aria-selected="true"], li[data-baseweb="option"]:hover {
+        background-color: #ffe6cc !important; /* 淺橘色背景 */
+    }
+    li[aria-selected="true"] div, li[data-baseweb="option"]:hover div {
+        color: #ff6600 !important; /* 深橘色文字 */
+    }
+
+    /* --- 4. 標籤文字 (Label) --- */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
         color: #ffffff !important;
         font-size: 14px !important;
@@ -51,20 +92,7 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    /* --- 4. 下拉選單強制修復 (防止變黑) --- */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
-    div[data-baseweb="popover"] div, div[data-baseweb="menu"] div,
-    div[data-baseweb="popover"] span, div[data-baseweb="menu"] span,
-    div[data-baseweb="popover"] li, div[data-baseweb="menu"] li {
-        color: #000000 !important; /* 選項文字強制黑 */
-    }
-    div[data-baseweb="menu"] li:hover, div[data-baseweb="menu"] li[aria-selected="true"] {
-        background-color: #ffcc99 !important; /* 選中時變淺橘 */
-    }
-
-    /* --- 5. 報告框 (白紙黑字，最易讀) --- */
+    /* --- 5. 報告框 (白紙黑字) --- */
     .report-box {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -77,7 +105,6 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         margin-top: 15px;
     }
-    /* 強制報告框內文字為黑色 */
     .report-box p, .report-box li, .report-box strong, .report-box span, .report-box table {
         color: #000000 !important; 
     }
@@ -129,14 +156,14 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
-
-    #MainMenu, footer, header {visibility: hidden;}
     
     /* Expander 優化 */
     .streamlit-expanderHeader {
         color: #ffffff !important;
         font-weight: bold;
     }
+
+    #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
