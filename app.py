@@ -70,12 +70,19 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Expander 樣式優化 */
+    /* Expander 樣式優化 (針對新加入的擴充視窗) */
     .streamlit-expanderHeader {
         background-color: var(--card-blue) !important;
         color: var(--text-white) !important;
         border: 1px solid var(--text-orange) !important;
         border-radius: 8px;
+        font-weight: bold;
+    }
+    .streamlit-expanderContent {
+        background-color: rgba(255,255,255,0.02) !important;
+        border-radius: 0 0 8px 8px;
+        border: 1px solid var(--text-orange);
+        border-top: none;
     }
 
     /* --- 按鈕與報告框 --- */
@@ -153,15 +160,10 @@ if "current_strategy" not in st.session_state:
 
 # --- 工具函數：計算生命靈數 ---
 def calculate_life_path_number(birth_date):
-    # 格式化為 YYYYMMDD 字串
     date_str = birth_date.strftime("%Y%m%d")
-    # 將所有數字相加
     total = sum(int(digit) for digit in date_str)
-    
-    # 遞迴相加直到剩下一位數 (1-9)
     while total > 9:
         total = sum(int(digit) for digit in str(total))
-        
     return total
 
 # --- API Key 設定 ---
@@ -187,53 +189,17 @@ if api_key:
 
 # --- 主畫面標題 ---
 st.markdown("<h1>保險業務超級軍師</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．S線戰略．靈數解碼</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．S線戰略．結構化健診</p>", unsafe_allow_html=True)
 
 # --- S線銷售戰略指南 (收合選單) ---
 with st.expander("📖 點擊查看：S線銷售循環詳解 (S1~S6)"):
     st.markdown("""
-    <div class="s-line-card">
-        <div class="s-line-title">S1：取得名單 (Lead Generation)</div>
-        <div class="s-line-content">
-        • 核心目標：區分「嫌疑」與「潛在」名單。<br>
-        • 執行重點：初步篩選 (Qualification)。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S2：約訪 (Appointment Setting)</div>
-        <div class="s-line-content">
-        • 核心目標：賣「見面的價值」，不賣產品。<br>
-        • 執行重點：引起好奇，降低防備。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S3：初步面談 (Initial Interview)</div>
-        <div class="s-line-content">
-        • 核心目標：破冰，建立信任，SPIN-Situation。<br>
-        • 執行重點：蒐集背景，觀察 DISC/靈數特質。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S4：發覺需求 (Needs Discovery)</div>
-        <div class="s-line-content">
-        • 核心目標：隱性需求轉顯性 (SPIN-P/I/N)。<br>
-        • 執行重點：擴大痛點，讓客戶覺得不解決不行。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S5：說明建議書 (Proposal)</div>
-        <div class="s-line-content">
-        • 核心目標：FAB 法則，證明方案解決 S4 痛點。<br>
-        • 執行重點：針對痛點客製化，不堆疊功能。
-        </div>
-    </div>
-    <div class="s-line-card">
-        <div class="s-line-title">S6：成交 (Closing)</div>
-        <div class="s-line-content">
-        • 核心目標：簽署合約，鋪墊轉介紹。<br>
-        • 執行重點：促成行動，處理最後反對問題。
-        </div>
-    </div>
+    <div class="s-line-card"><div class="s-line-title">S1：取得名單</div><div class="s-line-content">建立潛在客戶資料庫，初步篩選。</div></div>
+    <div class="s-line-card"><div class="s-line-title">S2：約訪</div><div class="s-line-content">賣見面價值，不賣產品，引起好奇。</div></div>
+    <div class="s-line-card"><div class="s-line-title">S3：初步面談</div><div class="s-line-content">破冰，建立信任，SPIN-Situation。</div></div>
+    <div class="s-line-card"><div class="s-line-title">S4：發覺需求</div><div class="s-line-content">挖掘痛點，隱性需求轉顯性 (SPIN-P/I/N)。</div></div>
+    <div class="s-line-card"><div class="s-line-title">S5：說明建議書</div><div class="s-line-content">FAB 法則，證明方案解決 S4 痛點。</div></div>
+    <div class="s-line-card"><div class="s-line-title">S6：成交</div><div class="s-line-content">簽約締結，處理反對問題，鋪墊轉介紹。</div></div>
     """, unsafe_allow_html=True)
 
 # --- 輸入表單 ---
@@ -261,15 +227,35 @@ with st.container():
         interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股、看韓劇")
 
         st.markdown("<br><h3>🛡️ 保障盤點</h3>", unsafe_allow_html=True)
-        history = st.text_area("投保史 / 現有保障", placeholder="例：僅有公司團保...", height=100)
+        # 1. 保留原本的文字備註區
+        history_note = st.text_area("投保史備註 (文字描述)", placeholder="例：僅有公司團保，客戶覺得保費太貴...", height=80)
         
+        # 2. 新增：詳細保障額度 (擴充視窗)
+        with st.expander("➕ 點擊展開：詳細保障額度填寫 (選填)"):
+            st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字或單位 (例: 2000, 50萬)</p>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                cov_daily = st.text_input("住院日額", placeholder="例：2000")
+                cov_med_reim = st.text_input("醫療實支實付", placeholder="例：15萬")
+                cov_surg = st.text_input("定額手術", placeholder="例：5萬")
+                cov_acc_reim = st.text_input("意外實支實付", placeholder="例：3萬")
+            with c2:
+                cov_cancer = st.text_input("癌症一次金", placeholder="例：100萬")
+                cov_major = st.text_input("重大傷病", placeholder="例：100萬")
+                cov_radio = st.text_input("放療", placeholder="例：5000")
+                cov_chemo = st.text_input("化療", placeholder="例：5000")
+            with c3:
+                cov_ltc = st.text_input("長期照護月給付", placeholder="例：3萬")
+                cov_dis = st.text_input("失能月給付", placeholder="例：3萬")
+                cov_life = st.text_input("壽險", placeholder="例：500萬")
+
         st.markdown("---")
         st.markdown("<h3>🔍 深度分析線索</h3>", unsafe_allow_html=True)
         quotes = st.text_area("🗣️ 客戶語錄 (破冰關鍵)", placeholder="例：「我覺得保險都騙人的」...", height=100)
         target_product = st.text_area("🎯 你的銷售目標", placeholder="例：美元利變型保單...", height=80)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        submitted = st.form_submit_button("🚀 啟動 S 線 + 靈數分析")
+        submitted = st.form_submit_button("🚀 啟動完整戰略分析")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -280,15 +266,33 @@ if submitted:
     elif not model:
         st.error("⚠️ 系統連線異常")
     else:
-        # 計算生命靈數
         life_path_num = calculate_life_path_number(birthday)
         
-        with st.spinner(f"🧠 正在運算：生命靈數 {life_path_num} 號人 + S線戰略..."):
+        with st.spinner(f"🧠 正在運算：生命靈數 {life_path_num} 號人 + 保單健診分析..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
+            # 組合詳細保障資料
+            detailed_coverage = f"""
+            【詳細保障額度盤點】
+            - 住院日額：{cov_daily if cov_daily else '未填寫'}
+            - 醫療實支實付：{cov_med_reim if cov_med_reim else '未填寫'}
+            - 定額手術：{cov_surg if cov_surg else '未填寫'}
+            - 意外實支實付：{cov_acc_reim if cov_acc_reim else '未填寫'}
+            - 癌症一次金：{cov_cancer if cov_cancer else '未填寫'}
+            - 重大傷病一次金：{cov_major if cov_major else '未填寫'}
+            - 放療：{cov_radio if cov_radio else '未填寫'}
+            - 化療：{cov_chemo if cov_chemo else '未填寫'}
+            - 長期照護月給付：{cov_ltc if cov_ltc else '未填寫'}
+            - 失能月給付：{cov_dis if cov_dis else '未填寫'}
+            - 壽險：{cov_life if cov_life else '未填寫'}
+            
+            【其他備註】
+            {history_note}
+            """
+            
             final_prompt = f"""
-            你是一位擁有 20 年經驗的頂尖保險業務總監，精通「S線銷售循環」與「生命靈數性格分析」。
+            你是一位擁有 20 年經驗的頂尖保險業務總監，精通「S線銷售循環」與「保單健診分析」。
             
             【目前的戰略位置】
             👉 **{s_stage}**
@@ -296,38 +300,41 @@ if submitted:
             【客戶關鍵密碼】
             👉 **生命靈數：{life_path_num} 號人**
             
-            【資料如下】
+            【客戶資料】
             - 生日：{birthday} (約 {age} 歲)
             - 性別：{gender}
             - 職業：{job}
             - 興趣：{interests}
             - 年收入：{income} 萬
-            - 投保史：{history}
             - 客戶說過的話："{quotes}"
             - 業務員想賣的商品：{target_product}
             
-            【分析邏輯 - 請結合靈數與S線】
-            1. **生命靈數分析**：請先分析 {life_path_num} 號人的核心性格、決策模式（是衝動型、分析型、還是感受型？）。
-            2. **戰略融合**：針對 {life_path_num} 號人的性格，在 {s_stage} 階段，我們該用什麼語氣？該強調什麼重點？（例如：對4號人講S5建議書，要強調數據和條款安全感；對3號人要強調願景和圖像）。
+            {detailed_coverage}
+            
+            【分析邏輯】
+            1. **保單健診 (Gap Analysis)**：請根據客戶的「詳細保障額度」與「年收入/職業風險」進行比對。具體指出哪裡不足（例如：年收200萬但壽險為0，風險極大）。
+            2. **生命靈數結合**：針對 {life_path_num} 號人，我們該如何「包裝」這個保障缺口？（例如：對 6 號人強調對家人的責任；對 1 號人強調資產保全）。
+            3. **S線戰略**：在 {s_stage} 階段，如何利用這些缺口數據來推進銷售？
             
             【請依序輸出】
-            1. [客戶畫像：生命靈數 {life_path_num} 號人深度解析] (性格關鍵字、決策地雷、溝通偏好)
-            2. [本階段 ({s_stage}) 戰略目標]
-            3. [建議方向一] (針對此靈數的專屬切入點、話術)
-            4. [建議方向二] (針對此靈數的專屬切入點、話術)
+            1. [客戶畫像與心理分析] ({life_path_num} 號人性格 + 職業風險)
+            2. [保障缺口診斷書] (請根據輸入的數字，列出具體的優缺點分析)
+            3. [本階段 ({s_stage}) 戰略目標]
+            4. [建議方向一] (含切入點、話術)
+            5. [建議方向二] (含切入點、話術)
             """
             
             try:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"分析完成！這是一位 **{life_path_num} 號人**，針對他在 **{s_stage}** 的策略已生成。歡迎提問陪練！"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"健診完成！已針對 **{life_path_num} 號人** 的保障缺口進行分析。歡迎在下方針對特定險種提問！"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
 # --- 顯示策略與陪練室 ---
 if st.session_state.current_strategy:
-    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ S 線 + 靈數戰略報告</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 戰略與健診報告</h4>", unsafe_allow_html=True)
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("---")
@@ -337,7 +344,7 @@ if st.session_state.current_strategy:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入你想問的問題... (例如：怎麼跟 4 號人談這張單？)"):
+    if prompt := st.chat_input("輸入你想問的問題... (例如：癌症一次金只有30萬夠嗎？)"):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -355,8 +362,8 @@ if st.session_state.current_strategy:
                 {prompt}
                 
                 【任務】：
-                請針對客戶的「生命靈數性格」與「目前S線階段」回答。
-                如果是要求示範話術，請給出符合該靈數聽得進去的口語化例子。
+                請針對客戶的保障缺口、生命靈數性格、S線階段回答。
+                如果是詢問額度是否足夠，請用專業數據佐證（例如：癌症標靶藥物費用）。
                 """
                 
                 try:
