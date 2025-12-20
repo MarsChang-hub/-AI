@@ -92,6 +92,10 @@ st.markdown("""
         font-size: 14px;
         line-height: 1.5;
     }
+    .s-line-highlight {
+        color: #fff;
+        font-weight: bold;
+    }
     
     /* Expander 樣式優化 */
     .streamlit-expanderHeader {
@@ -215,17 +219,57 @@ if api_key:
 
 # --- 主畫面 ---
 st.markdown("<h1>保險業務超級軍師</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．S線戰略．精準健診</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# --- S線銷售戰略指南 ---
-with st.expander("📖 點擊查看：S線銷售循環詳解 (S1~S6)"):
+# --- S線銷售戰略指南 (更新版) ---
+with st.expander("📖 點擊查看：S線顧問式銷售詳解 (核心心法)"):
     st.markdown("""
-    <div class="s-line-card"><div class="s-line-title">S1：取得名單</div><div class="s-line-content">建立潛在客戶資料庫，初步篩選。</div></div>
-    <div class="s-line-card"><div class="s-line-title">S2：約訪</div><div class="s-line-content">賣見面價值，不賣產品，引起好奇。</div></div>
-    <div class="s-line-card"><div class="s-line-title">S3：初步面談</div><div class="s-line-content">破冰，建立信任，SPIN-Situation。</div></div>
-    <div class="s-line-card"><div class="s-line-title">S4：發覺需求</div><div class="s-line-content">挖掘痛點，隱性需求轉顯性 (SPIN-P/I/N)。</div></div>
-    <div class="s-line-card"><div class="s-line-title">S5：說明建議書</div><div class="s-line-content">FAB 法則，證明方案解決 S4 痛點。</div></div>
-    <div class="s-line-card"><div class="s-line-title">S6：成交</div><div class="s-line-content">簽約締結，處理反對問題，鋪墊轉介紹。</div></div>
+    <div class="s-line-card">
+        <div class="s-line-title">S1：取得名單 (Lead Generation)</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">核心策略</span>：定聯 (Regular Contact)。名單不是名字，是連結。<br>
+        • <span class="s-line-highlight">分類</span>：強連結、弱連結、無連結。<br>
+        • <span class="s-line-highlight">目標</span>：300顆種子計畫，把弱連結養成都強連結。
+        </div>
+    </div>
+    <div class="s-line-card">
+        <div class="s-line-title">S2：約訪 (Appointment Setting)</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">核心目標</span>：只賣「見面」，不賣「保險」。<br>
+        • <span class="s-line-highlight">話術重點</span>：「學到很棒的觀念想請你聽聽看，給我回饋」。<br>
+        • <span class="s-line-highlight">反對處理</span>：沒空? -> 我配合你；電話講? -> 見面才能看肢體回饋。
+        </div>
+    </div>
+    <div class="s-line-card">
+        <div class="s-line-title">S3：初步面談 (Initial Interview)</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">核心原則</span>：建立信任 (Rapport)，跟追/第三人/觀察。<br>
+        • <span class="s-line-highlight">4大與入點</span>：愛的人、愛自己、想做的事、不安全感。<br>
+        • <span class="s-line-highlight">過橋</span>：簡單問幾個問題(收入/支出/資產)進入S4。
+        </div>
+    </div>
+    <div class="s-line-card">
+        <div class="s-line-title">S4：發覺需求 (Needs Discovery) ★關鍵</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">執行步驟</span>：Find (找痛點) -> Confirm (正面讚美/描述心聲) -> Expand (人生軸線/往遠處看)。<br>
+        • <span class="s-line-highlight">目標</span>：讓隱性需求變顯性痛點，不解決會很痛苦。
+        </div>
+    </div>
+    <div class="s-line-card">
+        <div class="s-line-title">S5：說明建議書 (Proposal)</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">核心概念</span>：保險生活化。不講條款，講故事。<br>
+        • <span class="s-line-highlight">比喻</span>：醫療=進廠度假；長照=專業瑪麗亞；壽險=現金企業。<br>
+        • <span class="s-line-highlight">價值</span>：保住未來的賺錢能力。
+        </div>
+    </div>
+    <div class="s-line-card">
+        <div class="s-line-title">S6：成交 (Closing)</div>
+        <div class="s-line-content">
+        • <span class="s-line-highlight">促成</span>：給予選擇題 (A/B方案)。<br>
+        • <span class="s-line-highlight">轉介</span>：成交後請求轉介紹，重新進入 S1 循環。
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
 # --- 輸入表單 ---
@@ -239,7 +283,7 @@ with st.container():
         with col_stage:
             s_stage = st.selectbox(
                 "📍 目前銷售階段 (S線)", 
-                ["S1：取得名單/陌生開發", "S2：電話約訪/邀約", "S3：初步面談/建立關係", "S4：發覺需求/挖掘痛點", "S5：說明建議書/解決方案", "S6：成交締結/處理反對問題"]
+                ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"]
             )
 
         st.markdown("<br><h3>📋 客戶基本輪廓</h3>", unsafe_allow_html=True)
@@ -297,12 +341,12 @@ if submitted:
         life_path_num = calculate_life_path_number(birthday)
         display_name = client_name if client_name else "客戶"
         
-        # 計算壽險標準 (5年年薪)
+        # 計算壽險標準
         try:
             income_val = float(income) if income else 0
             life_ins_standard = int(income_val * 5)
         except:
-            life_ins_standard = "無法計算 (需填寫年收)"
+            life_ins_standard = "無法計算"
 
         with st.spinner(f"🧠 教練正在為【{display_name}】進行診斷..."):
             today = datetime.date.today()
@@ -327,13 +371,22 @@ if submitted:
             {history_note}
             """
             
-            # 硬核標準寫入 System Prompt
+            # 顧問式銷售核心邏輯 Prompt
             final_prompt = f"""
-            你現在是「教練 (Coach)」，一位擁有 20 年保險業經驗、善於 SPIN 銷售法、風險管理與人性分析的頂尖專家。請不要使用「保險總監」的抬頭，直接以「教練」自稱，語氣要人性化、有經驗、像一位前輩在指導後輩。
+            你現在是「教練 (Coach) Mars Chang」，一位擁有 20 年保險業經驗、精通「顧問式銷售 (Consultative Sales)」的頂尖專家。
+            請以「教練」自稱，語氣要人性化、有溫度、有經驗，像一位前輩在指導後輩。
             
             【目前的戰略位置】
             👉 **{s_stage}**
             
+            【S線顧問式銷售核心邏輯 (必須嚴格遵守)】
+            S1 (名單): 強調「定聯」與「連結強度」。名單不是名字，是連結。目的是為了以後可以懶惰。
+            S2 (約訪): 只賣「見面」不賣保險。話術：「學到一個觀念想請你聽聽看，給我回饋」。拒絕處理：配合客戶時間、見面才能觀察肢體。
+            S3 (面談): 建立 Rapport，運用「4切點」(愛的人/愛自己/想做的事/不安全感)。
+            S4 (需求): 核心三步驟：Find(找痛點) -> Confirm(正面讚美/描述心聲) -> Expand(人生軸線/往遠處看)。讓隱性需求變顯性。
+            S5 (建議書): 保險生活化。不講條款，講故事。比喻：醫療=進廠度假、長照=專業瑪麗亞、壽險=現金企業。
+            S6 (成交): 給予選擇題 (A/B方案)，成交後轉介紹 (回到S1)。
+
             【客戶關鍵密碼】
             👉 **姓名：{display_name}**
             👉 **生命靈數：{life_path_num} 號人**
@@ -349,37 +402,29 @@ if submitted:
             
             {detailed_coverage}
             
-            【★ 核心任務：保障缺口嚴格審查】
-            請嚴格依照以下「Mars Chang 教練標準」進行審查，只要客戶目前的額度低於標準，請務必在「保障缺口診斷書」中提出警示，並引用括號中的理由進行說服：
+            【保障缺口審查標準 (Mars Chang 教練標準)】
+            1. 住院日額：標準 4000 (單人房費)。
+            2. 醫療實支：標準 20萬 (達文西/海扶刀/標靶)。
+            3. 定額手術：標準 1000。
+            4. 意外實支：標準 10萬 (鈦合金/PRP)。
+            5. 癌症/重大傷病：標準 50萬/30萬 (緊急預備金)。
+            6. 放療/化療：標準 6000/次 (薪資損失/營養費)。
+            7. 長照/失能：標準 3萬 (外籍看護)。
+            8. 壽險：標準 5倍年薪 (留愛不留債)。
             
-            1. **住院日額**：標準 4000 (理由：單人房費用每日約4000元，雙人房品質差)。
-            2. **醫療實支實付**：標準 20萬 (理由：新式手術如達文西、海扶刀費用皆超過20萬，且癌症標靶藥物也需此額度)。
-            3. **定額手術**：標準 1000 (理由：這是最基本的規劃底線)。
-            4. **意外實支實付**：標準 10萬 (理由：骨折使用的鈦合金鋼板、PRP增生療法費用高昂)。
-            5. **癌症一次金**：標準 50萬 (理由：確診當下的緊急預備金)。
-            6. **重大傷病一次金**：標準 30萬 (理由：長期抗戰的啟動資金)。
-            7. **放療/化療**：標準 6000/次 (理由：彌補治療期間的薪資損失與交通營養費)。
-            8. **長照/失能月給付**：標準 3萬 (理由：請外籍看護的基本開銷)。
-            9. **壽險**：標準為年薪的 5 倍 (理由：留愛不留債，確保家人至少5年生活無虞)。
-            
-            【分析邏輯】
-            1. **Gap Analysis**：比對上述標準，列出具體不足的項目與金額。
-            2. **靈數結合**：用 {life_path_num} 號人聽得進去的方式（如1號人講重點、2號人講情感）來包裝這些缺口。
-            3. **話術指導**：針對 {s_stage} 階段，給出具體話術。
-            
-            【請依序輸出】
-            1. [客戶畫像與心理分析] ({display_name}, {life_path_num} 號人)
-            2. [保障缺口診斷書] (嚴格比對 Mars Chang 標準)
-            3. [本階段 ({s_stage}) 戰略目標]
-            4. [建議方向一] (含切入點、話術)
-            5. [建議方向二] (含切入點、話術)
+            【輸出要求】
+            1. **[客戶畫像與心理分析]**：結合 {life_path_num} 號人性格與職業風險。
+            2. **[保障缺口診斷書]**：嚴格比對 Mars Chang 標準，列出具體缺口與後果。
+            3. **[本階段 ({s_stage}) 戰略目標]**：引用上述 S 線核心邏輯 (例如 S2 就是賣見面)。
+            4. **[建議方向一]**：提供切入點與具體話術 (若是 S2 請用「求回饋」話術；S5 請用「生活化比喻」)。
+            5. **[建議方向二]**：提供另一種切入路徑。
             """
             
             try:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練。已針對 **{display_name}** ({life_path_num} 號人) 完成診斷。保障缺口已依照 Mars Chang 標準盤點完畢，請看上方報告！"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** ({life_path_num} 號人) 完成顧問式銷售分析。請看上方報告！"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
@@ -399,7 +444,7 @@ if st.session_state.current_strategy:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入你想問的問題... (例如：壽險缺口這麼大怎麼切入？)"):
+    if prompt := st.chat_input("輸入你想問的問題... (例如：S2如果他說沒空怎麼回？)"):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -407,7 +452,8 @@ if st.session_state.current_strategy:
         with st.chat_message("assistant"):
             with st.spinner("教練思考中..."):
                 chat_prompt = f"""
-                你現在是「教練 (Coach)」，請依照以下「保險策略報告」內容來指導新人。
+                你現在是「教練 (Coach) Mars Chang」。請依照以下「保險策略報告」內容指導新人。
+                嚴格遵守「顧問式銷售 S 線」邏輯。
                 
                 【策略報告內容】：
                 {st.session_state.current_strategy}
@@ -417,7 +463,7 @@ if st.session_state.current_strategy:
                 
                 【教練任務】：
                 請以過來人的經驗（人性化、經驗法則）回答。
-                如果是問缺口，請再次強調「Mars Chang 標準」的重要性（如：達文西手術很貴、單人房要4000）。
+                若是 S2 問題，強調「配合客戶時間」；若是 S5 問題，強調「比喻故事」。
                 """
                 
                 try:
