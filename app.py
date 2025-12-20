@@ -8,7 +8,7 @@ import pandas as pd
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 終極顯色修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 針對性顯色修復) ---
 st.markdown("""
 <style>
     :root {
@@ -22,7 +22,7 @@ st.markdown("""
     p, li, span, div { color: var(--text-body); }
     .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
     
-    /* --- 輸入框絕對顯色 (白底黑字) --- */
+    /* --- 1. 輸入框本體 (尚未點擊時) --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -33,31 +33,43 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* --- ★★★ 下拉選單終極修復 (針對所有層級) ★★★ --- */
-    /* 1. 彈出視窗與選單容器：強制白底 */
-    div[data-baseweb="popover"], 
-    div[data-baseweb="menu"], 
-    ul[data-baseweb="menu"] { 
-        background-color: #ffffff !important; 
+    /* --- 2. 下拉選單 (S線) 彈出視窗修復 --- */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {
+        background-color: #ffffff !important; /* 背景白 */
+    }
+    /* 強制選單內所有文字變黑 */
+    div[data-baseweb="menu"] div, div[data-baseweb="menu"] span, div[data-baseweb="menu"] li {
+        color: #000000 !important;
+    }
+    /* 選項 Hover/Selected 狀態 */
+    li[aria-selected="true"], li[data-baseweb="option"]:hover {
+        background-color: #ffe6cc !important; /* 淺橘底 */
+    }
+    li[aria-selected="true"] *, li[data-baseweb="option"]:hover * {
+        color: #ff6600 !important; /* 深橘字 */
+    }
+
+    /* --- 3. 生日日曆 (Calendar) 彈出視窗修復 --- */
+    div[data-baseweb="calendar"] {
+        background-color: #ffffff !important; /* 日曆背景白 */
+    }
+    /* 日曆內的月份、年份、星期、日期數字 -> 全部強制變黑 */
+    div[data-baseweb="calendar"] div, 
+    div[data-baseweb="calendar"] span, 
+    div[data-baseweb="calendar"] button {
+        color: #000000 !important;
+    }
+    /* 日曆內的按鈕背景 (上個月/下個月) */
+    div[data-baseweb="calendar"] button {
+        background-color: transparent !important;
+    }
+    /* 選中日期的樣式 */
+    div[aria-selected="true"] {
+        background-color: #ff9933 !important; /* 橘色圈圈 */
+        color: #ffffff !important; /* 白字 */
     }
     
-    /* 2. 選項內的「所有文字」：強制黑字 */
-    div[data-baseweb="popover"] *, 
-    div[data-baseweb="menu"] * { 
-        color: #000000 !important; 
-    }
-    
-    /* 3. 滑鼠懸停與選中狀態：淺橘底 + 深橘字 */
-    li[aria-selected="true"], 
-    li[data-baseweb="option"]:hover { 
-        background-color: #ffe6cc !important; 
-    }
-    /* 確保選中時，裡面的文字也變色 */
-    li[aria-selected="true"] *, 
-    li[data-baseweb="option"]:hover * {
-        color: #ff6600 !important; 
-    }
-    /* ----------------------------------------------- */
+    /* ------------------------------------------------ */
 
     /* 側邊欄樣式 */
     section[data-testid="stSidebar"] {
@@ -77,11 +89,10 @@ st.markdown("""
         color: #ff9933 !important;
     }
     
-    /* 刪除按鈕樣式 */
+    /* 刪除按鈕 */
     .delete-btn button {
         background-color: #ff4d4d !important;
         color: white !important;
-        border: none;
     }
 
     /* 報告框 */
@@ -145,7 +156,6 @@ def get_clients_by_key(user_key):
     conn.close()
     return df
 
-# ★★★ 新增刪除功能 ★★★
 def delete_client(user_key, name):
     conn = sqlite3.connect('insurance_crm.db')
     c = conn.cursor()
@@ -187,7 +197,6 @@ with st.sidebar:
         st.session_state.user_key = user_key_input
         st.success(f"已載入名單")
         
-        # 新增與刪除按鈕區
         col_new, col_del = st.columns([1, 1])
         with col_new:
             if st.button("➕ 新增客戶"):
@@ -196,16 +205,15 @@ with st.sidebar:
                 st.session_state.chat_history = []
                 st.rerun()
         
-        # ★★★ 刪除按鈕：只有在載入特定客戶時才顯示 ★★★
         if st.session_state.current_client_data.get("name"):
             with col_del:
                 if st.button("🗑️ 刪除個案"):
                     client_to_delete = st.session_state.current_client_data["name"]
                     delete_client(st.session_state.user_key, client_to_delete)
-                    st.session_state.current_client_data = {} # 清空畫面
+                    st.session_state.current_client_data = {} 
                     st.session_state.current_strategy = None
                     st.session_state.chat_history = []
-                    st.warning(f"已刪除 {client_to_delete} 的資料")
+                    st.warning(f"已刪除 {client_to_delete}")
                     st.rerun()
 
         clients_df = get_clients_by_key(user_key_input)
@@ -250,8 +258,7 @@ with st.form("client_form"):
         s_options = ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"]
         default_index = 0
         if "stage" in data:
-            try:
-                default_index = s_options.index(data["stage"])
+            try: default_index = s_options.index(data["stage"])
             except: pass
         s_stage = st.selectbox("📍 銷售階段 (S線)", s_options, index=default_index)
 
