@@ -5,89 +5,57 @@ import datetime
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 設計大師級 UI (CSS) ---
+# --- 🎨 視覺高亮與高對比 UI (CSS) ---
 st.markdown("""
 <style>
     /* --- 1. 配色系統 (Color System) --- */
     :root {
-        --bg-main: #001222;        /* 更深邃的午夜藍背景 */
-        --glass-card: rgba(255, 255, 255, 0.03); /* 玻璃擬態背景 */
-        --border-color: rgba(255, 153, 51, 0.3); /* 橘色微光邊框 */
-        --text-orange: #ff9933;
+        --bg-main: #001222;        /* 極深午夜藍 */
+        --glass-card: rgba(255, 255, 255, 0.05); /* 卡片背景 */
+        --border-color: #ff9933;   /* 橘色邊框 */
+        --text-orange: #ff9933;    /* 橘色文字 */
+        --text-body: #e0e0e0;      /* 亮銀色 (解決文字看不清的問題) */
         --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
-        --text-white: #f0f2f5;
         --input-bg: #ffffff;
+        --input-text: #000000;
     }
 
-    /* --- 2. 全域重置與背景 --- */
+    /* --- 2. 全域設定 --- */
     .stApp {
         background-color: var(--bg-main);
-        background-image: radial-gradient(circle at 50% 0%, #002a4d 0%, var(--bg-main) 70%); /* 頂部聚光燈效果 */
     }
     
-    /* 移除 Streamlit 預設討厭的頂部空白 */
+    /* 強制修改全域文字顏色，解決看不清楚的問題 */
+    p, li, span, div {
+        color: var(--text-body);
+    }
+    
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
-        max-width: 1200px; /* 限制最大寬度，讓大螢幕看起來不散漫 */
+        max-width: 1200px;
     }
 
-    /* --- 3. 緊湊排版核心 (Compact Layout Core) --- */
-    
-    /* 縮小所有元件之間的垂直間距 */
-    div[data-testid="stVerticalBlock"] {
-        gap: 0.6rem !important; /* 從預設的 1rem 改為 0.6rem */
-    }
-    
-    /* 縮小每個元件容器的邊距 */
-    .stElementContainer {
-        margin-bottom: 0.3rem !important;
-    }
+    /* --- 3. 緊湊排版 --- */
+    div[data-testid="stVerticalBlock"] { gap: 0.6rem !important; }
+    .stElementContainer { margin-bottom: 0.3rem !important; }
 
-    /* --- 4. 玻璃擬態卡片 (Glassmorphism Cards) --- */
-    .form-card {
-        background: var(--glass-card);
-        backdrop-filter: blur(10px); /* 毛玻璃效果 */
-        border: 1px solid var(--border-color);
-        padding: 20px 25px; /* 稍微縮減 Padding */
-        border-radius: 16px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        margin-bottom: 15px;
-    }
-    
-    .s-line-card {
-        background: rgba(0, 0, 0, 0.2);
-        border-left: 3px solid var(--text-orange);
-        padding: 10px 15px; /* 緊湊化 */
-        margin-bottom: 8px;
-        border-radius: 4px;
-    }
-
-    /* --- 5. 輸入元件美化 (Input Styling) --- */
-    /* 保持白底黑字以確保可讀性，但修飾細節 */
+    /* --- 4. 輸入元件優化 (白底黑字 + 高亮標籤) --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
         background-color: var(--input-bg) !important;
-        color: #000000 !important;
-        border: 1px solid #ddd !important; /* 邊框細一點 */
-        border-radius: 6px; /* 圓角小一點，比較專業 */
-        padding: 8px 10px !important; /* 內距縮小 */
-        font-size: 15px;
-        min-height: 40px; /* 統一高度 */
+        color: var(--input-text) !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px;
+        font-weight: 500;
     }
     
-    /* 聚焦時的橘色光暈 */
-    .stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
-        border-color: var(--text-orange) !important;
-        box-shadow: 0 0 0 2px rgba(255, 153, 51, 0.2) !important;
-    }
-
-    /* Label 標籤美化 */
+    /* 讓 Label (標籤) 非常清楚 */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
-        color: #b0c4de !important; /* 淺藍灰色，比純白更有質感 */
-        font-size: 13px !important; /* 字體縮小，更精緻 */
-        font-weight: 500;
-        margin-bottom: 2px !important;
+        color: #ffffff !important; /* 純白標籤 */
+        font-size: 14px !important;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
 
     /* 下拉選單修復 */
@@ -95,96 +63,70 @@ st.markdown("""
     div[data-baseweb="menu"] li span { color: #000 !important; }
     div[data-baseweb="menu"] li:hover { background-color: #fff5e6 !important; }
 
-    /* --- 6. 按鈕大師級設計 --- */
+    /* --- 5. 報告框 (最易讀的白底黑字) --- */
+    .report-box {
+        background-color: #ffffff !important;
+        color: #000000 !important; /* 報告內容強制純黑 */
+        padding: 30px;
+        border-radius: 8px;
+        border-top: 6px solid var(--text-orange);
+        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+        line-height: 1.8;
+        font-size: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        margin-top: 15px;
+    }
+    /* 報告框內的文字強制為黑色，覆蓋全域設定 */
+    .report-box p, .report-box li, .report-box strong, .report-box span {
+        color: #000000 !important; 
+    }
+
+    /* --- 6. 對話視窗優化 --- */
+    .stChatMessage {
+        background-color: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+    }
+    .stChatMessage p, .stChatMessage div { 
+        color: #ffffff !important; /* 對話文字純白 */
+    }
+
+    /* --- 7. 其他元件 --- */
+    .form-card {
+        background: var(--glass-card);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 12px;
+    }
+    
+    .s-line-card {
+        background: rgba(0,0,0,0.3);
+        border-left: 3px solid var(--text-orange);
+        padding: 10px;
+        margin-bottom: 5px;
+    }
+    .s-line-highlight { color: #fff !important; font-weight: bold; }
+
     .stButton > button {
-        width: 100%;
         background: var(--btn-gradient);
         color: white !important;
         border: none;
-        padding: 12px 0; /* 高度縮小一點 */
-        font-size: 16px;
-        font-weight: 600;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(255, 102, 0, 0.2);
-        transition: all 0.3s ease;
+        font-weight: bold;
         letter-spacing: 1px;
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 102, 0, 0.4);
-    }
-
-    /* --- 7. 報告與對話框 --- */
-    .report-box {
-        background-color: #fff !important; /* 報告區改為白底，模仿紙張質感，閱讀體驗最好 */
-        color: #1a1a1a !important;
-        padding: 30px;
-        border-radius: 8px;
-        border-top: 5px solid var(--text-orange);
-        font-family: "Microsoft JhengHei", sans-serif;
-        line-height: 1.7;
-        font-size: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        margin-top: 10px;
-        margin-bottom: 20px;
-    }
     
-    /* 對話框 */
-    .stChatMessage {
-        background-color: rgba(255,255,255,0.05) !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-    }
-    .stChatMessage p { color: #fff !important; }
+    h1, h2, h3 { color: var(--text-orange) !important; }
 
-    /* --- 8. 文字排版 --- */
-    h1 {
-        color: var(--text-orange) !important;
-        font-size: 26px !important;
-        font-weight: 800 !important;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 5px !important;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-    h3 {
-        color: var(--text-white) !important;
-        font-size: 16px !important;
-        border-left: 3px solid var(--text-orange);
-        padding-left: 10px;
-        margin-top: 10px !important;
-        margin-bottom: 10px !important;
-    }
-    p, li { color: #ccc; font-size: 14px; }
-    
     /* Mars Watermark */
     .mars-watermark {
-        position: fixed;
-        top: 20px;
-        right: 30px;
-        color: rgba(255, 153, 51, 0.7);
-        font-size: 12px;
-        font-weight: 600;
-        font-family: 'Helvetica Neue', sans-serif;
-        letter-spacing: 2px;
-        z-index: 9999;
-        pointer-events: none;
-        text-transform: uppercase;
-        border: 1px solid rgba(255, 153, 51, 0.3);
-        padding: 5px 10px;
-        border-radius: 20px;
+        position: fixed; top: 15px; right: 25px;
+        color: rgba(255, 153, 51, 0.9); /* 提高不透明度 */
+        font-size: 14px; font-weight: 700;
+        z-index: 9999; pointer-events: none;
+        font-family: 'Montserrat', sans-serif;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
 
-    /* Hide standard Streamlit clutter */
     #MainMenu, footer, header {visibility: hidden;}
-    
-    /* Expander 調整 */
-    .streamlit-expanderHeader {
-        background-color: rgba(255,255,255,0.05) !important;
-        color: #fff !important;
-        font-size: 14px !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 6px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -210,7 +152,7 @@ if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     with st.sidebar:
-        st.markdown(f"<h3 style='color: #ff9933; border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
         api_key = st.text_input("請輸入 Google API Key", type="password")
 
 # --- 連線模型 ---
@@ -226,32 +168,31 @@ if api_key:
     except Exception as e:
         st.error(f"連線失敗：{e}")
 
-# --- 主畫面標題區 (置中且緊湊) ---
+# --- 主畫面標題 ---
 col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
 with col_t2:
     st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 13px; color: #8899a6; margin-bottom: 10px;'>AI 賦能．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>AI 賦能．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# --- S線銷售戰略指南 (使用 Expander 收合) ---
+# --- S線指南 ---
 with st.expander("📖 S線顧問式銷售詳解 (核心心法)"):
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         st.markdown("""
-        <div class="s-line-card"><b>S1 名單</b>：定聯、分類 (強/弱/無)、300顆種子。</div>
-        <div class="s-line-card"><b>S2 約訪</b>：賣見面不賣產品。配合時間、求回饋。</div>
+        <div class="s-line-card"><b>S1 名單</b>：定聯、分類 (強/弱/無)。</div>
+        <div class="s-line-card"><b>S2 約訪</b>：賣見面不賣產品。</div>
         <div class="s-line-card"><b>S3 面談</b>：Rapport、4切點、過橋。</div>
         """, unsafe_allow_html=True)
     with col_s2:
         st.markdown("""
-        <div class="s-line-card"><b>S4 需求</b>：Find -> Confirm -> Expand (痛點擴大)。</div>
-        <div class="s-line-card"><b>S5 建議</b>：保險生活化。比喻 (度假/瑪麗亞/現金企業)。</div>
-        <div class="s-line-card"><b>S6 成交</b>：選擇題促成、轉介紹 (回S1)。</div>
+        <div class="s-line-card"><b>S4 需求</b>：Find -> Confirm -> Expand。</div>
+        <div class="s-line-card"><b>S5 建議</b>：保險生活化 (比喻)。</div>
+        <div class="s-line-card"><b>S6 成交</b>：選擇題促成、轉介紹。</div>
         """, unsafe_allow_html=True)
 
-# --- 輸入表單 (使用玻璃擬態卡片包裹) ---
+# --- 輸入表單 ---
 st.markdown('<div class="form-card">', unsafe_allow_html=True)
 with st.form("client_form"):
-    # 第一排：姓名 + 階段 (最重要資訊)
     c1, c2 = st.columns([1, 2])
     with c1:
         client_name = st.text_input("客戶姓名", placeholder="王小明")
@@ -259,7 +200,6 @@ with st.form("client_form"):
         s_stage = st.selectbox("📍 銷售階段 (S線)", 
             ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"])
 
-    # 第二排：個資 (3欄更緊湊)
     c3, c4, c5 = st.columns(3)
     with c3:
         gender = st.radio("性別", ["男", "女"], horizontal=True)
@@ -268,18 +208,16 @@ with st.form("client_form"):
     with c5:
         income = st.text_input("年收 (萬)", placeholder="100")
 
-    # 第三排：職業與興趣
     c6, c7 = st.columns(2)
     with c6:
         job = st.text_input("職業 / 職位", placeholder="例：竹科工程師")
     with c7:
         interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股")
 
-    st.markdown("<h3>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top:15px;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
     
-    # 保障細項 (使用 Expander 保持介面乾淨)
     with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
-        st.markdown("<p style='font-size:12px; color:#aaa; margin-bottom:10px;'>※ 請輸入數字 (單位已預設)</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:13px; color:#ffcc80;'>※ 請輸入數字 (單位已預設)</p>", unsafe_allow_html=True)
         g1, g2, g3 = st.columns(3)
         with g1:
             cov_daily = st.text_input("住院日額", placeholder="標準:4000")
@@ -298,7 +236,6 @@ with st.form("client_form"):
             
     history_note = st.text_area("投保史備註 / 其他狀況", placeholder="例：僅有團保，覺得保費貴...", height=68)
     
-    # 第四排：語錄與目標
     c8, c9 = st.columns(2)
     with c8:
         quotes = st.text_area("🗣️ 客戶語錄", placeholder="破冰關鍵句...", height=68)
@@ -355,28 +292,32 @@ if submitted:
             【目標】{target_product}
             {detailed_coverage}
             
-            【S線顧問式銷售核心】
-            S1:定聯/連結強度。S2:賣見面/求回饋。S3:4切點/Rapport。
-            S4:Find/Confirm/Expand(痛點擴大)。S5:保險生活化(比喻)。S6:選擇題/轉介紹。
-
-            【Mars Chang 缺口審查標準 (低於標準請警示)】
+            【Mars Chang 缺口審查標準】
             1.住院日額:4000(單人房)。2.醫療實支:20萬(達文西)。3.定額手術:1000。
             4.意外實支:10萬(鈦合金)。5.癌/重:50/30萬(預備金)。6.放化療:6000/次。
             7.長照失能:3萬(外勞)。8.壽險:5倍年薪。
 
-            【輸出】
-            1. [客戶畫像] ({life_path_num}號人性格+風險)
-            2. [保障缺口診斷] (嚴格比對標準)
-            3. [本階段戰略] (引用S線心法)
-            4. [建議方向一] (話術+切入)
-            5. [建議方向二] (話術+切入)
+            【輸出要求 - 請依序輸出】
+            1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
+            
+            2. **[保障額度健康度檢核表]**
+            (請製作一個表格或清單，只列出：項目 | 目前額度 | Mars標準 | 狀態(✅/❌))
+            
+            3. **[戰略目標 ({s_stage})]**
+            (引用S線心法，例如S2就是賣見面)
+            
+            4. **[建議方向一]** (話術+切入)
+            5. **[建議方向二]** (話術+切入)
+
+            6. **[⚠️ 缺口風險與嚴重性分析]**
+            (請將所有未達標的項目，在此處集中說明原因與後果。例如：為什麼醫療實支少於20萬很危險？因為達文西手術...等。請用強烈、專業的口吻說明，作為報告的壓軸警示。)
             """
             
             try:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** 完成分析。報告如下："})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** 完成分析。缺口風險分析已獨立列於報告最下方。"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
@@ -388,7 +329,6 @@ if st.session_state.current_strategy:
     with st.expander("📝 複製完整報告 (純文字版)"):
         st.code(st.session_state.current_strategy, language="markdown")
     
-    # 報告區塊改用白底黑字，確保閱讀體驗
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
@@ -405,10 +345,10 @@ if st.session_state.current_strategy:
         with st.chat_message("assistant"):
             with st.spinner("教練思考中..."):
                 chat_prompt = f"""
-                你是 Coach Mars Chang。依據報告回答新人問題。
+                你是 Coach Mars Chang。
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：人性化指導，若問S5請用比喻，若問缺口請強調 Mars 標準。
+                任務：人性化指導，若問缺口請強調 Mars 標準。
                 """
                 try:
                     response = model.generate_content(chat_prompt)
