@@ -5,7 +5,7 @@ import sqlite3
 import json
 import pandas as pd
 import re
-import time # 引入時間模組處理等待
+import time
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -180,33 +180,63 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 新增：API 自動重試函數 ★★★ ---
-def generate_content_with_retry(model, prompt):
+# --- ★★★ 核心：取得穩定的模型 ★★★ ---
+def get_stable_model(api_key):
+    genai.configure(api_key=api_key)
+    try:
+        # 1. 取得所有可用模型
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 2. 定義優先順序 (優先找 1.5 flash，最穩定且額度高)
+        priority_order = [
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro",
+            "gemini-1.0-pro",
+            "gemini-pro"
+        ]
+        
+        selected_model_name = None
+        # 3. 依照優先順序比對
+        for p_model in priority_order:
+            found = next((m for m in models if p_model in m), None)
+            if found:
+                selected_model_name = found
+                break
+        
+        # 4. 如果都沒找到，隨便抓一個有 flash 的，再沒有就抓第一個
+        if not selected_model_name:
+            selected_model_name = next((m for m in models if 'flash' in m), models[0])
+            
+        return genai.GenerativeModel(selected_model_name)
+    except:
+        # 萬一連連線都失敗，回傳預設
+        return genai.GenerativeModel('gemini-pro')
+
+# --- ★★★ API 自動重試函數 ★★★ ---
+def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
-    base_delay = 10 # 基礎等待時間
+    base_delay = 5 # 基礎等待時間
     
     for attempt in range(max_retries):
         try:
-            return model.generate_content(prompt)
+            return model_instance.generate_content(prompt)
         except Exception as e:
             error_str = str(e)
+            # 偵測 429 額度錯誤
             if "429" in error_str or "Quota" in error_str:
-                # 如果是最後一次嘗試，就不等了，直接拋出錯誤
                 if attempt == max_retries - 1:
-                    raise e
+                    raise e # 最後一次失敗，拋出錯誤
                 
-                # 計算等待時間 (隨著次數增加)
-                wait_time = base_delay * (attempt + 1) + 5
-                
-                # 在介面上顯示倒數
+                # 延長等待時間
+                wait_time = base_delay * (attempt + 1) + 10
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
-                    placeholder.warning(f"⚠️ API 額度已滿 (429)，正在冷卻中... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
+                    placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
                     time.sleep(1)
-                placeholder.empty() # 清除警告訊息
+                placeholder.empty()
             else:
-                # 如果不是額度問題 (例如網路斷線)，直接拋出錯誤
-                raise e
+                raise e # 其他錯誤直接拋出
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -261,23 +291,16 @@ with col_t2:
     st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>CRM 雲端版．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
 
-# --- API Key 設定與模型初始化 ---
+# --- API Key 設定 ---
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
+# 初始化 Model (使用穩定的選擇邏輯)
 model = None
 if api_key:
-    genai.configure(api_key=api_key)
-    try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        selected_model = next((m for m in available_models if 'flash' in m), None)
-        if not selected_model:
-            selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
-        model = genai.GenerativeModel(selected_model)
-    except:
-        model = genai.GenerativeModel('gemini-pro')
+    model = get_stable_model(api_key)
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -446,7 +469,7 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # ★★★ 使用帶有自動重試的生成函數 ★★★
+                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -454,7 +477,7 @@ if save_btn or analyze_btn:
                         save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"分析失敗 (已達最大重試次數): {e}")
+                        st.error(f"分析錯誤：{e}")
 
 # --- 顯示結果 ---
 if st.session_state.current_strategy:
@@ -506,7 +529,7 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    # ★★★ 使用帶有自動重試的生成函數 ★★★
+                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
@@ -517,4 +540,4 @@ if st.session_state.current_strategy:
                     
                     st.rerun()
                 except Exception as e:
-                    st.error(f"回覆失敗 (已達最大重試次數): {e}")
+                    st.error(f"回覆失敗：{e}")
