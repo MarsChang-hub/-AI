@@ -8,125 +8,157 @@ import pandas as pd
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 日曆終極修復) ---
+# --- 🎨 風格設定 (還原至最穩定的深藍專業版 CSS) ---
 st.markdown("""
 <style>
+    /* --- 1. 配色系統 --- */
     :root {
-        --bg-main: #001222;
+        --bg-main: #001222;        /* 極深午夜藍 */
         --glass-card: rgba(255, 255, 255, 0.05);
-        --text-orange: #ff9933;
-        --text-body: #e0e0e0;
+        --text-orange: #ff9933;    /* 橘色高亮 */
+        --text-body: #e0e0e0;      /* 亮銀色文字 */
         --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
     }
-    .stApp { background-color: var(--bg-main); }
-    p, li, span, div { color: var(--text-body); }
-    .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
-    
-    /* --- 1. 輸入框絕對顯色 (白底黑字) --- */
-    .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ff9933 !important;
-        border-radius: 6px;
-    }
-    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
-        color: #ffffff !important; font-size: 14px !important; font-weight: 600;
+
+    /* --- 2. 全域設定 --- */
+    .stApp {
+        background-color: var(--bg-main);
     }
     
-    /* --- 2. 下拉選單修復 --- */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] { 
-        background-color: #ffffff !important; 
+    /* 全域文字顏色 */
+    p, li, span, div {
+        color: var(--text-body);
     }
-    div[data-baseweb="popover"] *, div[data-baseweb="menu"] * { 
-        color: #000000 !important; 
-    }
-    li[aria-selected="true"], li[data-baseweb="option"]:hover { 
-        background-color: #ffe6cc !important; 
-    }
-    li[aria-selected="true"] *, li[data-baseweb="option"]:hover * {
-        color: #ff6600 !important; 
+    
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px;
     }
 
-    /* --- ★★★ 3. 日曆 (Calendar) 終極修復區 ★★★ --- */
+    /* --- 3. 輸入元件絕對顯色 (核心還原) --- */
+    /* 這是之前最穩定的版本，確保選單選完後看得到字 */
+    .stTextInput input, 
+    .stDateInput input, 
+    .stTextArea textarea, 
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #ffffff !important; /* 絕對白底 */
+        color: #000000 !important;            /* 絕對黑字 */
+        border: 1px solid #ff9933 !important; /* 橘色邊框 */
+        border-radius: 6px;
+    }
+
+    /* 標籤文字 (Label) */
+    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
+        color: #ffffff !important;
+        font-size: 14px !important;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- 4. 下拉選單「彈出列表」修復 (還原精準指定) --- */
+    /* 不使用 * 萬用字元，改回指定標籤，避免衝突 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    div[data-baseweb="popover"] div, div[data-baseweb="menu"] div,
+    div[data-baseweb="popover"] span, div[data-baseweb="menu"] span,
+    div[data-baseweb="popover"] li, div[data-baseweb="menu"] li {
+        color: #000000 !important; /* 選項文字強制黑 */
+    }
+    /* 滑鼠移過去的高亮 */
+    div[data-baseweb="menu"] li:hover, div[data-baseweb="menu"] li[aria-selected="true"] {
+        background-color: #ffcc99 !important; /* 選中時變淺橘 */
+        color: #000000 !important;
+    }
     
-    /* A. 日曆整體容器：強制白底，消除空白處怪色 */
+    /* 修正下拉選單箭頭 */
+    .stSelectbox svg {
+        fill: #000000 !important;
+    }
+
+    /* --- 5. 日曆元件修復 (獨立疊加，不影響下拉) --- */
     div[data-baseweb="calendar"] {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    
-    /* B. 標題區 (月份/年份) 與 導航箭頭 */
     div[data-baseweb="calendar"] button {
-        color: #000000 !important; /* 按鈕文字黑 */
-        background-color: transparent !important; /* 背景透明 */
+        color: #000000 !important; /* 年月切換按鈕文字黑 */
     }
-    /* 箭頭圖示 (SVG) 強制轉黑 */
-    div[data-baseweb="calendar"] button svg {
-        fill: #000000 !important;
-        color: #000000 !important;
-    }
-    /* 月份/年份選單點開後的文字 */
-    div[data-baseweb="calendar"] div[aria-haspopup="true"] {
-        color: #000000 !important;
-    }
-
-    /* C. 星期幾 (Mo, Tu, We...) */
     div[data-baseweb="calendar"] div[aria-label^="week"] {
-        color: #666666 !important; /* 深灰色 */
+        color: #666666 !important; /* 星期文字深灰 */
     }
-
-    /* D. 日期數字 (1, 2, 3...) */
     div[data-baseweb="calendar"] div[role="gridcell"] {
-        color: #000000 !important; /* 平常是黑色 */
+        color: #000000 !important; /* 日期數字黑 */
     }
-    
-    /* E. 選中日期的樣式 (橘色圈圈) */
     div[data-baseweb="calendar"] div[aria-selected="true"] {
-        background-color: #ff9933 !important;
-        color: #ffffff !important; /* 白字 */
-    }
-    
-    /* F. 滑鼠移過日期的樣式 */
-    div[data-baseweb="calendar"] div[role="gridcell"]:hover {
-        background-color: #f0f0f0 !important;
-        cursor: pointer;
-    }
-    /* ------------------------------------------------ */
-
-    /* 側邊欄 */
-    section[data-testid="stSidebar"] {
-        background-color: #001a33;
-        border-right: 1px solid #ff9933;
-    }
-    
-    /* 按鈕優化 */
-    div.row-widget.stButton > button {
-        background: transparent;
-        border: 1px solid rgba(255,255,255,0.2);
-        color: #ddd !important;
-        text-align: left;
-    }
-    div.row-widget.stButton > button:hover {
-        border-color: #ff9933;
-        color: #ff9933 !important;
-    }
-    .delete-btn button {
-        background-color: #ff4d4d !important;
-        color: white !important;
-        border: none;
+        background-color: #ff9933 !important; /* 選中日期橘底 */
+        color: #ffffff !important; /* 選中日期白字 */
     }
 
-    /* 報告框 */
+    /* --- 6. 報告框 (白紙黑字，最易讀) --- */
     .report-box {
         background-color: #ffffff !important;
         color: #000000 !important;
         padding: 30px;
         border-radius: 8px;
         border-top: 6px solid var(--text-orange);
+        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+        line-height: 1.8;
+        font-size: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         margin-top: 15px;
     }
-    .report-box * { color: #000000 !important; }
+    /* 強制報告框內文字為黑色 */
+    .report-box p, .report-box li, .report-box strong, .report-box span, .report-box table {
+        color: #000000 !important; 
+    }
+
+    /* --- 7. 對話視窗 --- */
+    .stChatMessage {
+        background-color: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+    }
+    .stChatMessage p, .stChatMessage div { 
+        color: #ffffff !important;
+    }
+
+    /* --- 8. 其他元件 --- */
+    .form-card {
+        background: var(--glass-card);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
     
+    .s-line-card {
+        background: rgba(0,0,0,0.3);
+        border-left: 3px solid var(--text-orange);
+        padding: 10px;
+        margin-bottom: 5px;
+    }
+    .s-line-highlight { color: #fff !important; font-weight: bold; }
+
+    .stButton > button {
+        background: var(--btn-gradient);
+        color: white !important;
+        border: none;
+        font-weight: bold;
+        letter-spacing: 1px;
+        padding: 12px 0;
+        border-radius: 8px;
+    }
+    
+    /* 刪除按鈕特別樣式 */
+    .delete-btn button {
+        background-color: #ff4d4d !important;
+        border: 1px solid #ff4d4d !important;
+    }
+    
+    h1, h2, h3 { color: var(--text-orange) !important; }
+
+    /* Mars Watermark */
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
         color: rgba(255, 153, 51, 0.9);
@@ -135,7 +167,14 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
+
     #MainMenu, footer, header {visibility: hidden;}
+    
+    /* Expander 優化 */
+    .streamlit-expanderHeader {
+        color: #ffffff !important;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -226,6 +265,7 @@ with st.sidebar:
                 st.session_state.chat_history = []
                 st.rerun()
         
+        # 刪除按鈕
         if st.session_state.current_client_data.get("name"):
             with col_del:
                 if st.button("🗑️ 刪除個案"):
