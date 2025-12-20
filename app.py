@@ -8,7 +8,7 @@ import pandas as pd
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版) ---
+# --- 🎨 風格設定 (深藍專業版 + 終極顯色修復) ---
 st.markdown("""
 <style>
     :root {
@@ -22,7 +22,7 @@ st.markdown("""
     p, li, span, div { color: var(--text-body); }
     .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
     
-    /* 輸入框絕對顯色 */
+    /* --- 輸入框絕對顯色 (白底黑字) --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -33,10 +33,31 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* 下拉選單修復 */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] { background-color: #ffffff !important; }
-    div[data-baseweb="popover"] li, div[data-baseweb="popover"] div { color: #000000 !important; }
-    li[aria-selected="true"], li[data-baseweb="option"]:hover { background-color: #ffe6cc !important; }
+    /* --- ★★★ 下拉選單終極修復 (針對所有層級) ★★★ --- */
+    /* 1. 彈出視窗與選單容器：強制白底 */
+    div[data-baseweb="popover"], 
+    div[data-baseweb="menu"], 
+    ul[data-baseweb="menu"] { 
+        background-color: #ffffff !important; 
+    }
+    
+    /* 2. 選項內的「所有文字」：強制黑字 */
+    div[data-baseweb="popover"] *, 
+    div[data-baseweb="menu"] * { 
+        color: #000000 !important; 
+    }
+    
+    /* 3. 滑鼠懸停與選中狀態：淺橘底 + 深橘字 */
+    li[aria-selected="true"], 
+    li[data-baseweb="option"]:hover { 
+        background-color: #ffe6cc !important; 
+    }
+    /* 確保選中時，裡面的文字也變色 */
+    li[aria-selected="true"] *, 
+    li[data-baseweb="option"]:hover * {
+        color: #ff6600 !important; 
+    }
+    /* ----------------------------------------------- */
 
     /* 側邊欄樣式 */
     section[data-testid="stSidebar"] {
@@ -54,6 +75,13 @@ st.markdown("""
     div.row-widget.stButton > button:hover {
         border-color: #ff9933;
         color: #ff9933 !important;
+    }
+    
+    /* 刪除按鈕樣式 */
+    .delete-btn button {
+        background-color: #ff4d4d !important;
+        color: white !important;
+        border: none;
     }
 
     /* 報告框 */
@@ -117,6 +145,14 @@ def get_clients_by_key(user_key):
     conn.close()
     return df
 
+# ★★★ 新增刪除功能 ★★★
+def delete_client(user_key, name):
+    conn = sqlite3.connect('insurance_crm.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM clients WHERE user_key=? AND name=?", (user_key, name))
+    conn.commit()
+    conn.close()
+
 init_db()
 
 # --- 初始化 Session State ---
@@ -135,7 +171,7 @@ def calculate_life_path_number(birth_date):
         try:
             birth_date = datetime.datetime.strptime(birth_date, "%Y-%m-%d").date()
         except:
-            birth_date = datetime.date(1990, 1, 1) # Fallback
+            birth_date = datetime.date(1990, 1, 1)
     date_str = birth_date.strftime("%Y%m%d")
     total = sum(int(digit) for digit in date_str)
     while total > 9:
@@ -151,11 +187,26 @@ with st.sidebar:
         st.session_state.user_key = user_key_input
         st.success(f"已載入名單")
         
-        if st.button("➕ 新增一位客戶"):
-            st.session_state.current_client_data = {} 
-            st.session_state.current_strategy = None
-            st.session_state.chat_history = []
-            st.rerun()
+        # 新增與刪除按鈕區
+        col_new, col_del = st.columns([1, 1])
+        with col_new:
+            if st.button("➕ 新增客戶"):
+                st.session_state.current_client_data = {} 
+                st.session_state.current_strategy = None
+                st.session_state.chat_history = []
+                st.rerun()
+        
+        # ★★★ 刪除按鈕：只有在載入特定客戶時才顯示 ★★★
+        if st.session_state.current_client_data.get("name"):
+            with col_del:
+                if st.button("🗑️ 刪除個案"):
+                    client_to_delete = st.session_state.current_client_data["name"]
+                    delete_client(st.session_state.user_key, client_to_delete)
+                    st.session_state.current_client_data = {} # 清空畫面
+                    st.session_state.current_strategy = None
+                    st.session_state.chat_history = []
+                    st.warning(f"已刪除 {client_to_delete} 的資料")
+                    st.rerun()
 
         clients_df = get_clients_by_key(user_key_input)
         
@@ -285,18 +336,14 @@ if save_btn or analyze_btn:
                 st.error("⚠️ 請輸入 API Key")
             else:
                 genai.configure(api_key=api_key)
-                # ★★★ 自動模型選擇邏輯 (修復 404 錯誤) ★★★
                 try:
                     available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                    # 優先找 flash，沒有就找 pro，再沒有就用第一個
                     selected_model = next((m for m in available_models if 'flash' in m), None)
                     if not selected_model:
                         selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
                     model = genai.GenerativeModel(selected_model)
                 except:
-                    # 如果抓不到清單，就退回到最穩定的 gemini-pro
                     model = genai.GenerativeModel('gemini-pro')
-                # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
                 life_path_num = calculate_life_path_number(birthday)
                 coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
