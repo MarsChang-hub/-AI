@@ -27,22 +27,21 @@ st.markdown("""
         padding-bottom: 5rem;
     }
     
-    /* --- NEW: Mars 商標浮水印樣式 --- */
+    /* --- Mars Chang 商標浮水印 --- */
     .mars-watermark {
-        position: fixed; /* 固定定位，釘在螢幕上 */
-        top: 15px;       /* 距離頂部 */
-        right: 25px;     /* 距離右側 */
-        color: var(--text-orange); /* 使用主題橘色 */
+        position: fixed;
+        top: 15px;
+        right: 25px;
+        color: var(--text-orange);
         font-size: 14px;
         font-weight: 600;
-        z-index: 9999;   /* 保證在最上層 */
-        font-family: 'Montserrat', sans-serif; /* 選個有質感的英文字體 */
-        letter-spacing: 1px; /* 增加字距，提升高級感 */
-        opacity: 0.8;    /* 稍微透明，不要太搶戲 */
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.5); /* 加一點陰影增加立體感 */
-        pointer-events: none; /* 讓滑鼠可以穿透它點擊下方的東西 */
+        z-index: 9999;
+        font-family: 'Montserrat', sans-serif;
+        letter-spacing: 1px;
+        opacity: 0.8;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        pointer-events: none;
     }
-    /* 手機版微調 */
     @media (max-width: 600px) {
         .mars-watermark {
             font-size: 12px;
@@ -176,9 +175,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 插入 Mars 商標 (在 CSS 之後立即執行) ---
-st.markdown('<div class="mars-watermark">Made by Mars</div>', unsafe_allow_html=True)
-
+# --- 插入 Mars Chang 商標 ---
+st.markdown('<div class="mars-watermark">Made by Mars Chang</div>', unsafe_allow_html=True)
 
 # --- 初始化 Session State ---
 if "chat_history" not in st.session_state:
@@ -186,7 +184,7 @@ if "chat_history" not in st.session_state:
 if "current_strategy" not in st.session_state:
     st.session_state.current_strategy = None
 
-# --- 工具函數：計算生命靈數 ---
+# --- 工具函數 ---
 def calculate_life_path_number(birth_date):
     date_str = birth_date.strftime("%Y%m%d")
     total = sum(int(digit) for digit in date_str)
@@ -215,11 +213,11 @@ if api_key:
     except Exception as e:
         st.error(f"連線失敗：{e}")
 
-# --- 主畫面標題 ---
+# --- 主畫面 ---
 st.markdown("<h1>保險業務超級軍師</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．S線戰略．結構化健診</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 15px; margin-bottom: 15px;'>AI 賦能．S線戰略．精準健診</p>", unsafe_allow_html=True)
 
-# --- S線銷售戰略指南 (收合選單) ---
+# --- S線銷售戰略指南 ---
 with st.expander("📖 點擊查看：S線銷售循環詳解 (S1~S6)"):
     st.markdown("""
     <div class="s-line-card"><div class="s-line-title">S1：取得名單</div><div class="s-line-content">建立潛在客戶資料庫，初步篩選。</div></div>
@@ -235,7 +233,6 @@ with st.container():
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
     
     with st.form("client_form"):
-        # 客戶姓名與階段
         col_name, col_stage = st.columns([1, 2])
         with col_name:
             client_name = st.text_input("客戶姓名", placeholder="例：王小明")
@@ -259,27 +256,26 @@ with st.container():
         interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股、看韓劇")
 
         st.markdown("<br><h3>🛡️ 保障盤點</h3>", unsafe_allow_html=True)
-        # 保留原本的文字備註區
         history_note = st.text_area("投保史備註 (文字描述)", placeholder="例：僅有公司團保，客戶覺得保費太貴...", height=80)
         
         # 詳細保障額度
         with st.expander("➕ 點擊展開：詳細保障額度填寫 (選填)"):
-            st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字或單位 (例: 2000, 50萬)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字 (單位已標註)</p>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
             with c1:
-                cov_daily = st.text_input("住院日額", placeholder="例：2000")
-                cov_med_reim = st.text_input("醫療實支實付", placeholder="例：15萬")
-                cov_surg = st.text_input("定額手術", placeholder="例：5萬")
-                cov_acc_reim = st.text_input("意外實支實付", placeholder="例：3萬")
+                cov_daily = st.text_input("住院日額", placeholder="標準：4000")
+                cov_med_reim = st.text_input("醫療實支實付 (萬)", placeholder="標準：20萬")
+                cov_surg = st.text_input("定額手術 (單位)", placeholder="標準：1000")
+                cov_acc_reim = st.text_input("意外實支實付 (萬)", placeholder="標準：10萬")
             with c2:
-                cov_cancer = st.text_input("癌症一次金", placeholder="例：100萬")
-                cov_major = st.text_input("重大傷病", placeholder="例：100萬")
-                cov_radio = st.text_input("放療/次", placeholder="例：5000")
-                cov_chemo = st.text_input("化療/次", placeholder="例：5000")
+                cov_cancer = st.text_input("癌症一次金 (萬)", placeholder="標準：50萬")
+                cov_major = st.text_input("重大傷病 (萬)", placeholder="標準：30萬")
+                cov_radio = st.text_input("放療/次", placeholder="標準：6000")
+                cov_chemo = st.text_input("化療/次", placeholder="標準：6000")
             with c3:
-                cov_ltc = st.text_input("長期照護月給付", placeholder="例：3萬")
-                cov_dis = st.text_input("失能月給付", placeholder="例：3萬")
-                cov_life = st.text_input("壽險", placeholder="例：500萬")
+                cov_ltc = st.text_input("長期照護月給付", placeholder="標準：3萬")
+                cov_dis = st.text_input("失能月給付", placeholder="標準：3萬")
+                cov_life = st.text_input("壽險 (萬)", placeholder="標準：5倍年薪")
 
         st.markdown("---")
         st.markdown("<h3>🔍 深度分析線索</h3>", unsafe_allow_html=True)
@@ -301,31 +297,39 @@ if submitted:
         life_path_num = calculate_life_path_number(birthday)
         display_name = client_name if client_name else "客戶"
         
-        with st.spinner(f"🧠 正在為【{display_name}】運算戰略..."):
+        # 計算壽險標準 (5年年薪)
+        try:
+            income_val = float(income) if income else 0
+            life_ins_standard = int(income_val * 5)
+        except:
+            life_ins_standard = "無法計算 (需填寫年收)"
+
+        with st.spinner(f"🧠 教練正在為【{display_name}】進行診斷..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
             # 組合詳細保障資料
             detailed_coverage = f"""
             【詳細保障額度盤點】
-            - 住院日額：{cov_daily if cov_daily else '未填寫'}
-            - 醫療實支實付：{cov_med_reim if cov_med_reim else '未填寫'}
-            - 定額手術：{cov_surg if cov_surg else '未填寫'}
-            - 意外實支實付：{cov_acc_reim if cov_acc_reim else '未填寫'}
-            - 癌症一次金：{cov_cancer if cov_cancer else '未填寫'}
-            - 重大傷病一次金：{cov_major if cov_major else '未填寫'}
-            - 放療/次：{cov_radio if cov_radio else '未填寫'}
-            - 化療/次：{cov_chemo if cov_chemo else '未填寫'}
-            - 長期照護月給付：{cov_ltc if cov_ltc else '未填寫'}
-            - 失能月給付：{cov_dis if cov_dis else '未填寫'}
-            - 壽險：{cov_life if cov_life else '未填寫'}
+            - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
+            - 醫療實支實付：{cov_med_reim if cov_med_reim else '0'} 萬 (標準: 20萬)
+            - 定額手術：{cov_surg if cov_surg else '0'} (標準: 1000)
+            - 意外實支實付：{cov_acc_reim if cov_acc_reim else '0'} 萬 (標準: 10萬)
+            - 癌症一次金：{cov_cancer if cov_cancer else '0'} 萬 (標準: 50萬)
+            - 重大傷病一次金：{cov_major if cov_major else '0'} 萬 (標準: 30萬)
+            - 放療/次：{cov_radio if cov_radio else '0'} (標準: 6000)
+            - 化療/次：{cov_chemo if cov_chemo else '0'} (標準: 6000)
+            - 長期照護月給付：{cov_ltc if cov_ltc else '0'} (標準: 3萬)
+            - 失能月給付：{cov_dis if cov_dis else '0'} (標準: 3萬)
+            - 壽險：{cov_life if cov_life else '0'} 萬 (標準: 5年年薪，約 {life_ins_standard} 萬)
             
             【其他備註】
             {history_note}
             """
             
+            # 硬核標準寫入 System Prompt
             final_prompt = f"""
-            你是一位擁有 20 年經驗的頂尖保險業務總監，精通「S線銷售循環」與「保單健診分析」。
+            你現在是「教練 (Coach)」，一位擁有 20 年保險業經驗、善於 SPIN 銷售法、風險管理與人性分析的頂尖專家。請不要使用「保險總監」的抬頭，直接以「教練」自稱，語氣要人性化、有經驗、像一位前輩在指導後輩。
             
             【目前的戰略位置】
             👉 **{s_stage}**
@@ -345,15 +349,27 @@ if submitted:
             
             {detailed_coverage}
             
+            【★ 核心任務：保障缺口嚴格審查】
+            請嚴格依照以下「Mars Chang 教練標準」進行審查，只要客戶目前的額度低於標準，請務必在「保障缺口診斷書」中提出警示，並引用括號中的理由進行說服：
+            
+            1. **住院日額**：標準 4000 (理由：單人房費用每日約4000元，雙人房品質差)。
+            2. **醫療實支實付**：標準 20萬 (理由：新式手術如達文西、海扶刀費用皆超過20萬，且癌症標靶藥物也需此額度)。
+            3. **定額手術**：標準 1000 (理由：這是最基本的規劃底線)。
+            4. **意外實支實付**：標準 10萬 (理由：骨折使用的鈦合金鋼板、PRP增生療法費用高昂)。
+            5. **癌症一次金**：標準 50萬 (理由：確診當下的緊急預備金)。
+            6. **重大傷病一次金**：標準 30萬 (理由：長期抗戰的啟動資金)。
+            7. **放療/化療**：標準 6000/次 (理由：彌補治療期間的薪資損失與交通營養費)。
+            8. **長照/失能月給付**：標準 3萬 (理由：請外籍看護的基本開銷)。
+            9. **壽險**：標準為年薪的 5 倍 (理由：留愛不留債，確保家人至少5年生活無虞)。
+            
             【分析邏輯】
-            1. **保單健診 (Gap Analysis)**：請根據客戶的「詳細保障額度」與「年收入/職業風險」進行比對。具體指出哪裡不足。
-            2. **生命靈數結合**：針對 {life_path_num} 號人，我們該如何「包裝」這個保障缺口？
-            3. **S線戰略**：在 {s_stage} 階段，如何利用這些缺口數據來推進銷售？
-            4. **話術要求**：請在話術中直接稱呼客戶為「{display_name}」或「{display_name}先生/小姐」。
+            1. **Gap Analysis**：比對上述標準，列出具體不足的項目與金額。
+            2. **靈數結合**：用 {life_path_num} 號人聽得進去的方式（如1號人講重點、2號人講情感）來包裝這些缺口。
+            3. **話術指導**：針對 {s_stage} 階段，給出具體話術。
             
             【請依序輸出】
             1. [客戶畫像與心理分析] ({display_name}, {life_path_num} 號人)
-            2. [保障缺口診斷書]
+            2. [保障缺口診斷書] (嚴格比對 Mars Chang 標準)
             3. [本階段 ({s_stage}) 戰略目標]
             4. [建議方向一] (含切入點、話術)
             5. [建議方向二] (含切入點、話術)
@@ -363,47 +379,45 @@ if submitted:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"分析完成！已針對 **{display_name}** ({life_path_num} 號人) 生成戰略。歡迎提問陪練！"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練。已針對 **{display_name}** ({life_path_num} 號人) 完成診斷。保障缺口已依照 Mars Chang 標準盤點完畢，請看上方報告！"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
 # --- 顯示策略與陪練室 ---
 if st.session_state.current_strategy:
-    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 戰略與健診報告</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 教練戰略報告</h4>", unsafe_allow_html=True)
     
-    # 一鍵複製區塊
     with st.expander("📝 點擊這裡：複製完整報告 (純文字版)"):
         st.code(st.session_state.current_strategy, language="markdown")
     
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("<h3>🤖 總監陪練室 (針對上方策略提問)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>🤖 教練陪練室 (針對上方策略提問)</h3>", unsafe_allow_html=True)
 
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入你想問的問題..."):
+    if prompt := st.chat_input("輸入你想問的問題... (例如：壽險缺口這麼大怎麼切入？)"):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("總監思考中..."):
+            with st.spinner("教練思考中..."):
                 chat_prompt = f"""
-                你現在是針對以下這份「保險策略報告」的陪練教練。
-                目前階段：{st.session_state.current_strategy}裡的戰略階段。
+                你現在是「教練 (Coach)」，請依照以下「保險策略報告」內容來指導新人。
                 
                 【策略報告內容】：
                 {st.session_state.current_strategy}
                 
-                【使用者問題】：
+                【新人問題】：
                 {prompt}
                 
-                【任務】：
-                請針對客戶的保障缺口、生命靈數性格、S線階段回答。
-                如果是回答話術，請記得使用客戶姓名。
+                【教練任務】：
+                請以過來人的經驗（人性化、經驗法則）回答。
+                如果是問缺口，請再次強調「Mars Chang 標準」的重要性（如：達文西手術很貴、單人房要4000）。
                 """
                 
                 try:
@@ -411,7 +425,6 @@ if st.session_state.current_strategy:
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
-                    # 聊天回覆複製按鈕
                     with st.expander("📝 複製這個回覆"):
                         st.code(response.text, language="markdown")
                         
