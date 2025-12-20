@@ -56,9 +56,29 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
 
-    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #fff !important; }
-    div[data-baseweb="menu"] li span { color: #000 !important; }
-    div[data-baseweb="menu"] li:hover { background-color: #fff5e6 !important; }
+    /* ★★★ 關鍵修復：S線下拉選單強制顯色 ★★★ */
+    /* 1. 設定彈出視窗背景為純白 */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    
+    /* 2. 強制所有選項文字為純黑 (包含 div, span, li) */
+    div[data-baseweb="popover"] div, 
+    div[data-baseweb="popover"] span,
+    div[data-baseweb="popover"] li,
+    div[data-baseweb="menu"] div,
+    div[data-baseweb="menu"] span,
+    div[data-baseweb="menu"] li {
+        color: #000000 !important;
+    }
+    
+    /* 3. 滑鼠移過去的高亮效果 (淺橘色底) */
+    div[data-baseweb="menu"] li:hover,
+    div[data-baseweb="menu"] li[aria-selected="true"] {
+        background-color: #fff5e6 !important;
+        color: #000000 !important;
+    }
+    /* ★★★★★★★★★★★★★★★★★★★★★★★★★★★ */
 
     /* --- 5. 報告框 --- */
     .report-box {
@@ -193,6 +213,7 @@ with st.form("client_form"):
     with c1:
         client_name = st.text_input("客戶姓名", placeholder="王小明")
     with c2:
+        # 下拉選單
         s_stage = st.selectbox("📍 銷售階段 (S線)", 
             ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"])
 
@@ -263,18 +284,12 @@ if submitted:
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
-            # --- 核心邏輯：判斷是否顯示檢核表 ---
-            # 1. 檢查是否輸入了任何數字
+            # --- 智慧判斷邏輯 ---
             coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
             has_coverage_data = any(x.strip() for x in coverage_inputs)
-            
-            # 2. 檢查銷售目標是否提到「醫療」
             has_medical_intent = "醫療" in target_product
-            
-            # 3. 決定是否啟動 Gap Analysis
             show_gap_analysis = has_coverage_data or has_medical_intent
 
-            # --- 組合 Prompt ---
             detailed_coverage = f"""
             【詳細保障額度盤點】
             - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
@@ -291,12 +306,10 @@ if submitted:
             【備註】{history_note}
             """
             
-            # 動態建構 Prompt 輸出要求
             output_requirements = """
             1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
             """
             
-            # 只有在需要時才加入檢核表要求
             if show_gap_analysis:
                 output_requirements += """
             2. **[保障額度健康度檢核表]**
@@ -310,7 +323,6 @@ if submitted:
             5. **[建議方向二]** (話術+切入)
             """
             
-            # 只有在需要時才加入嚴重性分析
             if show_gap_analysis:
                 output_requirements += """
             6. **[⚠️ 缺口風險與嚴重性分析]**
@@ -359,7 +371,7 @@ if st.session_state.current_strategy:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入問題... (例如：這個缺口怎麼講更順？)"):
+    if prompt := st.chat_input("輸入問題..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
