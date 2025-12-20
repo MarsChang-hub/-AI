@@ -4,14 +4,15 @@ import datetime
 import sqlite3
 import json
 import pandas as pd
+import re # 引入正規表達式處理數字
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 彈出視窗底層修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 下拉顯色修復) ---
 st.markdown("""
 <style>
-    /* --- 1. 全域配色 (保持您喜歡的深藍與橘) --- */
+    /* --- 1. 全域配色 --- */
     :root {
         --bg-main: #001222;        /* 極深午夜藍 */
         --glass-card: rgba(255, 255, 255, 0.05);
@@ -34,7 +35,7 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* --- ★★★ 3. 下拉選單 (Dropdown) 修復區 ★★★ --- */
+    /* --- 3. 下拉選單 (Dropdown) 修復區 --- */
     /* 強制彈出選單的容器背景為白色 */
     div[data-baseweb="popover"], div[data-baseweb="menu"] {
         background-color: #ffffff !important;
@@ -51,31 +52,6 @@ st.markdown("""
         color: #ff6600 !important; /* 深橘字 */
         font-weight: bold;
     }
-
-    /* --- ★★★ 4. 日曆 (Calendar) 修復區 ★★★ --- */
-    /* 強制日曆容器背景為白色 */
-    div[data-baseweb="calendar"] {
-        background-color: #ffffff !important;
-    }
-    /* 日曆內的文字 (日期、星期) 強制為黑色 */
-    div[data-baseweb="calendar"] div {
-        color: #000000 !important;
-    }
-    /* 日曆標題按鈕 (月份/年份) 強制為黑色 (解決標題不見的問題) */
-    div[data-baseweb="calendar"] button {
-        color: #000000 !important;
-    }
-    /* 左右箭頭圖示 (SVG) 強制填滿黑色 */
-    div[data-baseweb="calendar"] svg {
-        fill: #000000 !important;
-        color: #000000 !important;
-    }
-    /* 選中日期的樣式 */
-    div[data-baseweb="calendar"] div[aria-selected="true"] {
-        background-color: #ff9933 !important;
-        color: #ffffff !important;
-    }
-    /* ------------------------------------------------ */
 
     /* 側邊欄 */
     section[data-testid="stSidebar"] {
@@ -186,14 +162,13 @@ if "current_strategy" not in st.session_state:
 if "user_key" not in st.session_state:
     st.session_state.user_key = ""
 
-# --- 工具函數 ---
-def calculate_life_path_number(birth_date):
-    if isinstance(birth_date, str):
-        try:
-            birth_date = datetime.datetime.strptime(birth_date, "%Y-%m-%d").date()
-        except:
-            birth_date = datetime.date(1990, 1, 1)
-    date_str = birth_date.strftime("%Y%m%d")
+# --- 工具函數：計算生命靈數 (更新版，支援純文字) ---
+def calculate_life_path_number(birth_text):
+    # 使用正規表達式只取出數字
+    digits = re.findall(r'\d', str(birth_text))
+    if not digits:
+        return 0
+    date_str = "".join(digits)
     total = sum(int(digit) for digit in date_str)
     while total > 9:
         total = sum(int(digit) for digit in str(total))
@@ -278,11 +253,8 @@ with st.form("client_form"):
         gender_idx = 0 if data.get("gender") == "男" else 1
         gender = st.radio("性別", ["男", "女"], index=gender_idx, horizontal=True)
     with c4:
-        bday_val = datetime.date(1990, 1, 1)
-        if "birthday" in data and data["birthday"]:
-            try: bday_val = datetime.datetime.strptime(data["birthday"], "%Y-%m-%d").date()
-            except: pass
-        birthday = st.date_input("生日", value=bday_val, min_value=datetime.date(1950, 1, 1))
+        # ★★★ 修正：改用純文字輸入框 ★★★
+        birthday = st.text_input("生日 (西元年/月/日)", value=data.get("birthday", ""), placeholder="例：1990/01/01")
     with c5:
         income = st.text_input("年收 (萬)", value=data.get("income", ""))
 
@@ -364,6 +336,22 @@ if save_btn or analyze_btn:
                     model = genai.GenerativeModel('gemini-pro')
 
                 life_path_num = calculate_life_path_number(birthday)
+                
+                # 計算年齡 (嘗試解析文字格式)
+                age = "未知"
+                try:
+                    # 嘗試幾種常見格式
+                    for fmt in ["%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d", "%Y%m%d"]:
+                        try:
+                            bday_obj = datetime.datetime.strptime(birthday, fmt).date()
+                            today = datetime.date.today()
+                            age = today.year - bday_obj.year - ((today.month, today.day) < (bday_obj.month, bday_obj.day))
+                            break
+                        except:
+                            continue
+                except:
+                    pass
+
                 coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
                 has_coverage_data = any(x.strip() for x in coverage_inputs)
                 has_medical_intent = "醫療" in target_product
@@ -405,7 +393,7 @@ if save_btn or analyze_btn:
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
                 【戰略位置】{s_stage}
-                【客戶】{client_name}, {life_path_num} 號人, {job}, 年收{income}萬
+                【客戶】{client_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
                 【語錄】"{quotes}"
                 【目標】{target_product}
                 {detailed_coverage}
