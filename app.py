@@ -14,7 +14,7 @@ st.markdown("""
         --glass-card: rgba(255, 255, 255, 0.05); /* 卡片背景 */
         --border-color: #ff9933;   /* 橘色邊框 */
         --text-orange: #ff9933;    /* 橘色文字 */
-        --text-body: #e0e0e0;      /* 亮銀色 (解決文字看不清的問題) */
+        --text-body: #e0e0e0;      /* 亮銀色 */
         --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
         --input-bg: #ffffff;
         --input-text: #000000;
@@ -25,7 +25,6 @@ st.markdown("""
         background-color: var(--bg-main);
     }
     
-    /* 強制修改全域文字顏色，解決看不清楚的問題 */
     p, li, span, div {
         color: var(--text-body);
     }
@@ -40,7 +39,7 @@ st.markdown("""
     div[data-testid="stVerticalBlock"] { gap: 0.6rem !important; }
     .stElementContainer { margin-bottom: 0.3rem !important; }
 
-    /* --- 4. 輸入元件優化 (白底黑字 + 高亮標籤) --- */
+    /* --- 4. 輸入元件優化 --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, 
     .stSelectbox div[data-baseweb="select"] > div {
         background-color: var(--input-bg) !important;
@@ -50,23 +49,21 @@ st.markdown("""
         font-weight: 500;
     }
     
-    /* 讓 Label (標籤) 非常清楚 */
     .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
-        color: #ffffff !important; /* 純白標籤 */
+        color: #ffffff !important;
         font-size: 14px !important;
         font-weight: 600;
         letter-spacing: 0.5px;
     }
 
-    /* 下拉選單修復 */
     div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #fff !important; }
     div[data-baseweb="menu"] li span { color: #000 !important; }
     div[data-baseweb="menu"] li:hover { background-color: #fff5e6 !important; }
 
-    /* --- 5. 報告框 (最易讀的白底黑字) --- */
+    /* --- 5. 報告框 --- */
     .report-box {
         background-color: #ffffff !important;
-        color: #000000 !important; /* 報告內容強制純黑 */
+        color: #000000 !important;
         padding: 30px;
         border-radius: 8px;
         border-top: 6px solid var(--text-orange);
@@ -76,18 +73,17 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         margin-top: 15px;
     }
-    /* 報告框內的文字強制為黑色，覆蓋全域設定 */
-    .report-box p, .report-box li, .report-box strong, .report-box span {
+    .report-box p, .report-box li, .report-box strong, .report-box span, .report-box table {
         color: #000000 !important; 
     }
 
-    /* --- 6. 對話視窗優化 --- */
+    /* --- 6. 對話視窗 --- */
     .stChatMessage {
         background-color: rgba(255,255,255,0.08) !important;
         border: 1px solid rgba(255,255,255,0.2) !important;
     }
     .stChatMessage p, .stChatMessage div { 
-        color: #ffffff !important; /* 對話文字純白 */
+        color: #ffffff !important;
     }
 
     /* --- 7. 其他元件 --- */
@@ -119,7 +115,7 @@ st.markdown("""
     /* Mars Watermark */
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
-        color: rgba(255, 153, 51, 0.9); /* 提高不透明度 */
+        color: rgba(255, 153, 51, 0.9);
         font-size: 14px; font-weight: 700;
         z-index: 9999; pointer-events: none;
         font-family: 'Montserrat', sans-serif;
@@ -267,6 +263,18 @@ if submitted:
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
+            # --- 核心邏輯：判斷是否顯示檢核表 ---
+            # 1. 檢查是否輸入了任何數字
+            coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
+            has_coverage_data = any(x.strip() for x in coverage_inputs)
+            
+            # 2. 檢查銷售目標是否提到「醫療」
+            has_medical_intent = "醫療" in target_product
+            
+            # 3. 決定是否啟動 Gap Analysis
+            show_gap_analysis = has_coverage_data or has_medical_intent
+
+            # --- 組合 Prompt ---
             detailed_coverage = f"""
             【詳細保障額度盤點】
             - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
@@ -283,8 +291,34 @@ if submitted:
             【備註】{history_note}
             """
             
+            # 動態建構 Prompt 輸出要求
+            output_requirements = """
+            1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
+            """
+            
+            # 只有在需要時才加入檢核表要求
+            if show_gap_analysis:
+                output_requirements += """
+            2. **[保障額度健康度檢核表]**
+            (請製作一個表格，列出：項目 | 目前額度 | Mars標準 | 狀態(✅/❌))
+                """
+            
+            output_requirements += f"""
+            3. **[戰略目標 ({s_stage})]**
+            (引用S線心法，例如S2就是賣見面)
+            4. **[建議方向一]** (話術+切入)
+            5. **[建議方向二]** (話術+切入)
+            """
+            
+            # 只有在需要時才加入嚴重性分析
+            if show_gap_analysis:
+                output_requirements += """
+            6. **[⚠️ 缺口風險與嚴重性分析]**
+            (請將所有未達標的項目，在此處集中說明原因與後果。例如：為什麼醫療實支少於20萬很危險？因為達文西手術...等。請用強烈、專業的口吻說明，作為報告的壓軸警示。)
+                """
+
             final_prompt = f"""
-            你現在是「教練 (Coach) Mars Chang」。請嚴格遵守「顧問式銷售」邏輯與「Mars Chang 保障標準」。
+            你現在是「教練 (Coach) Mars Chang」。請嚴格遵守「顧問式銷售」邏輯。
             
             【戰略位置】{s_stage}
             【客戶】{display_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
@@ -298,26 +332,14 @@ if submitted:
             7.長照失能:3萬(外勞)。8.壽險:5倍年薪。
 
             【輸出要求 - 請依序輸出】
-            1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
-            
-            2. **[保障額度健康度檢核表]**
-            (請製作一個表格或清單，只列出：項目 | 目前額度 | Mars標準 | 狀態(✅/❌))
-            
-            3. **[戰略目標 ({s_stage})]**
-            (引用S線心法，例如S2就是賣見面)
-            
-            4. **[建議方向一]** (話術+切入)
-            5. **[建議方向二]** (話術+切入)
-
-            6. **[⚠️ 缺口風險與嚴重性分析]**
-            (請將所有未達標的項目，在此處集中說明原因與後果。例如：為什麼醫療實支少於20萬很危險？因為達文西手術...等。請用強烈、專業的口吻說明，作為報告的壓軸警示。)
+            {output_requirements}
             """
             
             try:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** 完成分析。缺口風險分析已獨立列於報告最下方。"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"我是教練 Mars。已針對 **{display_name}** 完成分析。報告如下："})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
