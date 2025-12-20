@@ -8,7 +8,7 @@ import pandas as pd
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 針對性顯色修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 日曆終極修復) ---
 st.markdown("""
 <style>
     :root {
@@ -22,7 +22,7 @@ st.markdown("""
     p, li, span, div { color: var(--text-body); }
     .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
     
-    /* --- 1. 輸入框本體 (尚未點擊時) --- */
+    /* --- 1. 輸入框絕對顯色 (白底黑字) --- */
     .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -33,51 +33,73 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* --- 2. 下拉選單 (S線) 彈出視窗修復 --- */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important; /* 背景白 */
+    /* --- 2. 下拉選單修復 --- */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] { 
+        background-color: #ffffff !important; 
     }
-    /* 強制選單內所有文字變黑 */
-    div[data-baseweb="menu"] div, div[data-baseweb="menu"] span, div[data-baseweb="menu"] li {
-        color: #000000 !important;
+    div[data-baseweb="popover"] *, div[data-baseweb="menu"] * { 
+        color: #000000 !important; 
     }
-    /* 選項 Hover/Selected 狀態 */
-    li[aria-selected="true"], li[data-baseweb="option"]:hover {
-        background-color: #ffe6cc !important; /* 淺橘底 */
+    li[aria-selected="true"], li[data-baseweb="option"]:hover { 
+        background-color: #ffe6cc !important; 
     }
     li[aria-selected="true"] *, li[data-baseweb="option"]:hover * {
-        color: #ff6600 !important; /* 深橘字 */
+        color: #ff6600 !important; 
     }
 
-    /* --- 3. 生日日曆 (Calendar) 彈出視窗修復 --- */
+    /* --- ★★★ 3. 日曆 (Calendar) 終極修復區 ★★★ --- */
+    
+    /* A. 日曆整體容器：強制白底，消除空白處怪色 */
     div[data-baseweb="calendar"] {
-        background-color: #ffffff !important; /* 日曆背景白 */
-    }
-    /* 日曆內的月份、年份、星期、日期數字 -> 全部強制變黑 */
-    div[data-baseweb="calendar"] div, 
-    div[data-baseweb="calendar"] span, 
-    div[data-baseweb="calendar"] button {
+        background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* 日曆內的按鈕背景 (上個月/下個月) */
+    
+    /* B. 標題區 (月份/年份) 與 導航箭頭 */
     div[data-baseweb="calendar"] button {
-        background-color: transparent !important;
+        color: #000000 !important; /* 按鈕文字黑 */
+        background-color: transparent !important; /* 背景透明 */
     }
-    /* 選中日期的樣式 */
-    div[aria-selected="true"] {
-        background-color: #ff9933 !important; /* 橘色圈圈 */
+    /* 箭頭圖示 (SVG) 強制轉黑 */
+    div[data-baseweb="calendar"] button svg {
+        fill: #000000 !important;
+        color: #000000 !important;
+    }
+    /* 月份/年份選單點開後的文字 */
+    div[data-baseweb="calendar"] div[aria-haspopup="true"] {
+        color: #000000 !important;
+    }
+
+    /* C. 星期幾 (Mo, Tu, We...) */
+    div[data-baseweb="calendar"] div[aria-label^="week"] {
+        color: #666666 !important; /* 深灰色 */
+    }
+
+    /* D. 日期數字 (1, 2, 3...) */
+    div[data-baseweb="calendar"] div[role="gridcell"] {
+        color: #000000 !important; /* 平常是黑色 */
+    }
+    
+    /* E. 選中日期的樣式 (橘色圈圈) */
+    div[data-baseweb="calendar"] div[aria-selected="true"] {
+        background-color: #ff9933 !important;
         color: #ffffff !important; /* 白字 */
     }
     
+    /* F. 滑鼠移過日期的樣式 */
+    div[data-baseweb="calendar"] div[role="gridcell"]:hover {
+        background-color: #f0f0f0 !important;
+        cursor: pointer;
+    }
     /* ------------------------------------------------ */
 
-    /* 側邊欄樣式 */
+    /* 側邊欄 */
     section[data-testid="stSidebar"] {
         background-color: #001a33;
         border-right: 1px solid #ff9933;
     }
     
-    /* 客戶按鈕優化 */
+    /* 按鈕優化 */
     div.row-widget.stButton > button {
         background: transparent;
         border: 1px solid rgba(255,255,255,0.2);
@@ -88,11 +110,10 @@ st.markdown("""
         border-color: #ff9933;
         color: #ff9933 !important;
     }
-    
-    /* 刪除按鈕 */
     .delete-btn button {
         background-color: #ff4d4d !important;
         color: white !important;
+        border: none;
     }
 
     /* 報告框 */
