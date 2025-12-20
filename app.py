@@ -5,6 +5,7 @@ import sqlite3
 import json
 import pandas as pd
 import re
+import time # 引入時間模組處理等待
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -179,6 +180,34 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
+# --- ★★★ 新增：API 自動重試函數 ★★★ ---
+def generate_content_with_retry(model, prompt):
+    max_retries = 3
+    base_delay = 10 # 基礎等待時間
+    
+    for attempt in range(max_retries):
+        try:
+            return model.generate_content(prompt)
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "Quota" in error_str:
+                # 如果是最後一次嘗試，就不等了，直接拋出錯誤
+                if attempt == max_retries - 1:
+                    raise e
+                
+                # 計算等待時間 (隨著次數增加)
+                wait_time = base_delay * (attempt + 1) + 5
+                
+                # 在介面上顯示倒數
+                placeholder = st.empty()
+                for t in range(wait_time, 0, -1):
+                    placeholder.warning(f"⚠️ API 額度已滿 (429)，正在冷卻中... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
+                    time.sleep(1)
+                placeholder.empty() # 清除警告訊息
+            else:
+                # 如果不是額度問題 (例如網路斷線)，直接拋出錯誤
+                raise e
+
 # --- 側邊欄 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
@@ -291,7 +320,6 @@ with st.form("client_form"):
         with g2:
             cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""), placeholder="標準:50")
             cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""), placeholder="標準:30")
-            # ★★★ 修改點：標準下修為 3000 ★★★
             cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
             cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
         with g3:
@@ -360,7 +388,6 @@ if save_btn or analyze_btn:
                 has_medical_intent = "醫療" in target_product
                 show_gap_analysis = has_coverage_data or has_medical_intent
 
-                # ★★★ 修改點：詳細盤點中的標準更新為 3000 ★★★
                 detailed_coverage = f"""
                 【詳細保障額度盤點】
                 - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
@@ -398,7 +425,6 @@ if save_btn or analyze_btn:
                 6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
                     """
 
-                # ★★★ 修改點：Prompt 裡的標準更新為 3000 ★★★
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
                 請使用豐富的 Markdown 語法讓報告美觀易讀（使用粗體、條列、表格）。
@@ -420,14 +446,15 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        response = model.generate_content(final_prompt)
+                        # ★★★ 使用帶有自動重試的生成函數 ★★★
+                        response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
                         form_data['last_strategy'] = response.text
                         save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"分析錯誤：{e}")
+                        st.error(f"分析失敗 (已達最大重試次數): {e}")
 
 # --- 顯示結果 ---
 if st.session_state.current_strategy:
@@ -479,7 +506,8 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    response = model.generate_content(chat_prompt)
+                    # ★★★ 使用帶有自動重試的生成函數 ★★★
+                    response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
                     current_data = st.session_state.current_client_data
@@ -489,4 +517,4 @@ if st.session_state.current_strategy:
                     
                     st.rerun()
                 except Exception as e:
-                    st.error(f"回覆失敗：{e}")
+                    st.error(f"回覆失敗 (已達最大重試次數): {e}")
