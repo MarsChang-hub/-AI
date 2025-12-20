@@ -70,7 +70,7 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Expander 樣式優化 (針對新加入的擴充視窗) */
+    /* Expander 樣式優化 */
     .streamlit-expanderHeader {
         background-color: var(--card-blue) !important;
         color: var(--text-white) !important;
@@ -207,11 +207,15 @@ with st.container():
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
     
     with st.form("client_form"):
-        st.markdown("<h3>📍 目前銷售階段 (S線)</h3>", unsafe_allow_html=True)
-        s_stage = st.selectbox(
-            "請選擇目前進度", 
-            ["S1：取得名單/陌生開發", "S2：電話約訪/邀約", "S3：初步面談/建立關係", "S4：發覺需求/挖掘痛點", "S5：說明建議書/解決方案", "S6：成交締結/處理反對問題"]
-        )
+        # 1. 新增：客戶姓名
+        col_name, col_stage = st.columns([1, 2])
+        with col_name:
+            client_name = st.text_input("客戶姓名", placeholder="例：王小明")
+        with col_stage:
+            s_stage = st.selectbox(
+                "📍 目前銷售階段 (S線)", 
+                ["S1：取得名單/陌生開發", "S2：電話約訪/邀約", "S3：初步面談/建立關係", "S4：發覺需求/挖掘痛點", "S5：說明建議書/解決方案", "S6：成交締結/處理反對問題"]
+            )
 
         st.markdown("<br><h3>📋 客戶基本輪廓</h3>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1])
@@ -227,10 +231,10 @@ with st.container():
         interests = st.text_input("興趣 / 休閒", placeholder="例：登山、美股、看韓劇")
 
         st.markdown("<br><h3>🛡️ 保障盤點</h3>", unsafe_allow_html=True)
-        # 1. 保留原本的文字備註區
+        # 保留原本的文字備註區
         history_note = st.text_area("投保史備註 (文字描述)", placeholder="例：僅有公司團保，客戶覺得保費太貴...", height=80)
         
-        # 2. 新增：詳細保障額度 (擴充視窗)
+        # 2. 詳細保障額度 (更新標籤)
         with st.expander("➕ 點擊展開：詳細保障額度填寫 (選填)"):
             st.markdown("<p style='color:white; font-size:14px;'>※ 請輸入數字或單位 (例: 2000, 50萬)</p>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
@@ -242,8 +246,9 @@ with st.container():
             with c2:
                 cov_cancer = st.text_input("癌症一次金", placeholder="例：100萬")
                 cov_major = st.text_input("重大傷病", placeholder="例：100萬")
-                cov_radio = st.text_input("放療", placeholder="例：5000")
-                cov_chemo = st.text_input("化療", placeholder="例：5000")
+                # 更新標籤
+                cov_radio = st.text_input("放療/次", placeholder="例：5000")
+                cov_chemo = st.text_input("化療/次", placeholder="例：5000")
             with c3:
                 cov_ltc = st.text_input("長期照護月給付", placeholder="例：3萬")
                 cov_dis = st.text_input("失能月給付", placeholder="例：3萬")
@@ -267,8 +272,10 @@ if submitted:
         st.error("⚠️ 系統連線異常")
     else:
         life_path_num = calculate_life_path_number(birthday)
+        # 處理姓名
+        display_name = client_name if client_name else "客戶"
         
-        with st.spinner(f"🧠 正在運算：生命靈數 {life_path_num} 號人 + 保單健診分析..."):
+        with st.spinner(f"🧠 正在為【{display_name}】運算戰略..."):
             today = datetime.date.today()
             age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
             
@@ -281,8 +288,8 @@ if submitted:
             - 意外實支實付：{cov_acc_reim if cov_acc_reim else '未填寫'}
             - 癌症一次金：{cov_cancer if cov_cancer else '未填寫'}
             - 重大傷病一次金：{cov_major if cov_major else '未填寫'}
-            - 放療：{cov_radio if cov_radio else '未填寫'}
-            - 化療：{cov_chemo if cov_chemo else '未填寫'}
+            - 放療/次：{cov_radio if cov_radio else '未填寫'}
+            - 化療/次：{cov_chemo if cov_chemo else '未填寫'}
             - 長期照護月給付：{cov_ltc if cov_ltc else '未填寫'}
             - 失能月給付：{cov_dis if cov_dis else '未填寫'}
             - 壽險：{cov_life if cov_life else '未填寫'}
@@ -298,6 +305,7 @@ if submitted:
             👉 **{s_stage}**
             
             【客戶關鍵密碼】
+            👉 **姓名：{display_name}**
             👉 **生命靈數：{life_path_num} 號人**
             
             【客戶資料】
@@ -312,13 +320,14 @@ if submitted:
             {detailed_coverage}
             
             【分析邏輯】
-            1. **保單健診 (Gap Analysis)**：請根據客戶的「詳細保障額度」與「年收入/職業風險」進行比對。具體指出哪裡不足（例如：年收200萬但壽險為0，風險極大）。
-            2. **生命靈數結合**：針對 {life_path_num} 號人，我們該如何「包裝」這個保障缺口？（例如：對 6 號人強調對家人的責任；對 1 號人強調資產保全）。
+            1. **保單健診 (Gap Analysis)**：請根據客戶的「詳細保障額度」與「年收入/職業風險」進行比對。具體指出哪裡不足。
+            2. **生命靈數結合**：針對 {life_path_num} 號人，我們該如何「包裝」這個保障缺口？
             3. **S線戰略**：在 {s_stage} 階段，如何利用這些缺口數據來推進銷售？
+            4. **話術要求**：請在話術中直接稱呼客戶為「{display_name}」或「{display_name}先生/小姐」。
             
             【請依序輸出】
-            1. [客戶畫像與心理分析] ({life_path_num} 號人性格 + 職業風險)
-            2. [保障缺口診斷書] (請根據輸入的數字，列出具體的優缺點分析)
+            1. [客戶畫像與心理分析] ({display_name}, {life_path_num} 號人)
+            2. [保障缺口診斷書]
             3. [本階段 ({s_stage}) 戰略目標]
             4. [建議方向一] (含切入點、話術)
             5. [建議方向二] (含切入點、話術)
@@ -328,13 +337,19 @@ if submitted:
                 response = model.generate_content(final_prompt)
                 st.session_state.current_strategy = response.text
                 st.session_state.chat_history = []
-                st.session_state.chat_history.append({"role": "assistant", "content": f"健診完成！已針對 **{life_path_num} 號人** 的保障缺口進行分析。歡迎在下方針對特定險種提問！"})
+                st.session_state.chat_history.append({"role": "assistant", "content": f"分析完成！已針對 **{display_name}** ({life_path_num} 號人) 生成戰略。歡迎提問陪練！"})
             except Exception as e:
                 st.error(f"發生錯誤：{e}")
 
 # --- 顯示策略與陪練室 ---
 if st.session_state.current_strategy:
     st.markdown(f"<h4 style='color: #ff9933; text-align: center; margin-top: 20px;'>✅ 戰略與健診報告</h4>", unsafe_allow_html=True)
+    
+    # 3. 新增：一鍵複製區塊 (使用 st.code 來實現複製按鈕)
+    with st.expander("📝 點擊這裡：複製完整報告 (純文字版)"):
+        st.code(st.session_state.current_strategy, language="markdown")
+    
+    # 顯示漂亮的渲染版報告
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("---")
@@ -344,7 +359,7 @@ if st.session_state.current_strategy:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("輸入你想問的問題... (例如：癌症一次金只有30萬夠嗎？)"):
+    if prompt := st.chat_input("輸入你想問的問題..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -363,12 +378,17 @@ if st.session_state.current_strategy:
                 
                 【任務】：
                 請針對客戶的保障缺口、生命靈數性格、S線階段回答。
-                如果是詢問額度是否足夠，請用專業數據佐證（例如：癌症標靶藥物費用）。
+                如果是回答話術，請記得使用客戶姓名。
                 """
                 
                 try:
                     response = model.generate_content(chat_prompt)
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                    
+                    # 聊天回覆也增加複製按鈕
+                    with st.expander("📝 複製這個回覆"):
+                        st.code(response.text, language="markdown")
+                        
                 except Exception as e:
                     st.error(f"回覆失敗：{e}")
