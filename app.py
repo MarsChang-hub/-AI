@@ -44,15 +44,6 @@ st.markdown("""
         border-right: 1px solid #ff9933;
     }
     
-    /* S線分類標籤 */
-    .stage-header {
-        color: #ff9933;
-        font-weight: bold;
-        padding: 5px 0;
-        border-bottom: 1px solid rgba(255,153,51,0.3);
-        margin-top: 10px;
-    }
-    
     /* 客戶按鈕優化 */
     div.row-widget.stButton > button {
         background: transparent;
@@ -94,7 +85,6 @@ st.markdown('<div class="mars-watermark">Made by Mars Chang</div>', unsafe_allow
 def init_db():
     conn = sqlite3.connect('insurance_crm.db')
     c = conn.cursor()
-    # 建立客戶表：包含 user_key (金鑰) 以區分不同使用者
     c.execute('''CREATE TABLE IF NOT EXISTS clients
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   user_key TEXT,
@@ -108,46 +98,25 @@ def init_db():
 def save_client_to_db(user_key, name, stage, form_data):
     conn = sqlite3.connect('insurance_crm.db')
     c = conn.cursor()
-    # 檢查該金鑰下是否已有此客戶
     c.execute("SELECT id FROM clients WHERE user_key=? AND name=?", (user_key, name))
     result = c.fetchone()
-    
     json_data = json.dumps(form_data, default=str)
-    
     if result:
-        # 更新
         c.execute("UPDATE clients SET stage=?, data=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (stage, json_data, result[0]))
     else:
-        # 新增
         c.execute("INSERT INTO clients (user_key, name, stage, data) VALUES (?, ?, ?, ?)", (user_key, name, stage, json_data))
-    
     conn.commit()
     conn.close()
 
 def get_clients_by_key(user_key):
     conn = sqlite3.connect('insurance_crm.db')
-    df = pd.read_sql_query("SELECT * FROM clients WHERE user_key=? ORDER BY updated_at DESC", conn, params=(user_key,))
+    try:
+        df = pd.read_sql_query("SELECT * FROM clients WHERE user_key=? ORDER BY updated_at DESC", conn, params=(user_key,))
+    except:
+        df = pd.DataFrame()
     conn.close()
     return df
 
-def delete_client_from_db(client_id):
-    conn = sqlite3.connect('insurance_crm.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM clients WHERE id=?", (client_id,))
-    conn.commit()
-    conn.close()
-
-def get_client_details(client_id):
-    conn = sqlite3.connect('insurance_crm.db')
-    c = conn.cursor()
-    c.execute("SELECT data FROM clients WHERE id=?", (client_id,))
-    result = c.fetchone()
-    conn.close()
-    if result:
-        return json.loads(result[0])
-    return None
-
-# 初始化資料庫
 init_db()
 
 # --- 初始化 Session State ---
@@ -163,48 +132,41 @@ if "user_key" not in st.session_state:
 # --- 工具函數 ---
 def calculate_life_path_number(birth_date):
     if isinstance(birth_date, str):
-        birth_date = datetime.datetime.strptime(birth_date, "%Y-%m-%d").date()
+        try:
+            birth_date = datetime.datetime.strptime(birth_date, "%Y-%m-%d").date()
+        except:
+            birth_date = datetime.date(1990, 1, 1) # Fallback
     date_str = birth_date.strftime("%Y%m%d")
     total = sum(int(digit) for digit in date_str)
     while total > 9:
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- 側邊欄：名單管理系統 ---
+# --- 側邊欄：名單管理 ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2382/2382461.png", width=50)
     st.markdown("### 🗂️ 客戶名單管理")
-    
-    # 1. 金鑰登入
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
     
     if user_key_input:
         st.session_state.user_key = user_key_input
         st.success(f"已載入名單")
         
-        # 新增客戶按鈕
         if st.button("➕ 新增一位客戶"):
-            st.session_state.current_client_data = {} # 清空表單
+            st.session_state.current_client_data = {} 
             st.session_state.current_strategy = None
             st.session_state.chat_history = []
             st.rerun()
 
-        # 2. 顯示名單 (按 S1~S6 分類)
         clients_df = get_clients_by_key(user_key_input)
         
         if not clients_df.empty:
             st.markdown("---")
-            # 定義階段順序
             stages = ["S1", "S2", "S3", "S4", "S5", "S6"]
-            
             for stage_prefix in stages:
-                # 篩選該階段客戶
                 stage_clients = clients_df[clients_df['stage'].str.startswith(stage_prefix)]
-                
                 if not stage_clients.empty:
                     with st.expander(f"📂 {stage_prefix} ({len(stage_clients)}人)", expanded=False):
                         for index, row in stage_clients.iterrows():
-                            # 點擊客戶載入資料
                             if st.button(f"👤 {row['name']}", key=f"btn_{row['id']}"):
                                 loaded_data = json.loads(row['data'])
                                 st.session_state.current_client_data = loaded_data
@@ -226,9 +188,8 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
-# --- 輸入表單 (自動帶入 Session State 資料) ---
+# --- 表單 ---
 data = st.session_state.current_client_data
-
 st.markdown('<div class="form-card" style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px;">', unsafe_allow_html=True)
 with st.form("client_form"):
     c1, c2 = st.columns([1, 2])
@@ -240,8 +201,7 @@ with st.form("client_form"):
         if "stage" in data:
             try:
                 default_index = s_options.index(data["stage"])
-            except:
-                pass
+            except: pass
         s_stage = st.selectbox("📍 銷售階段 (S線)", s_options, index=default_index)
 
     c3, c4, c5 = st.columns(3)
@@ -249,13 +209,10 @@ with st.form("client_form"):
         gender_idx = 0 if data.get("gender") == "男" else 1
         gender = st.radio("性別", ["男", "女"], index=gender_idx, horizontal=True)
     with c4:
-        # 處理生日日期格式
         bday_val = datetime.date(1990, 1, 1)
         if "birthday" in data and data["birthday"]:
-            try:
-                bday_val = datetime.datetime.strptime(data["birthday"], "%Y-%m-%d").date()
-            except:
-                pass
+            try: bday_val = datetime.datetime.strptime(data["birthday"], "%Y-%m-%d").date()
+            except: pass
         birthday = st.date_input("生日", value=bday_val, min_value=datetime.date(1950, 1, 1))
     with c5:
         income = st.text_input("年收 (萬)", value=data.get("income", ""))
@@ -267,7 +224,6 @@ with st.form("client_form"):
         interests = st.text_input("興趣 / 休閒", value=data.get("interests", ""))
 
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
-    
     with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
         g1, g2, g3 = st.columns(3)
         with g1:
@@ -294,8 +250,6 @@ with st.form("client_form"):
         target_product = st.text_area("🎯 銷售目標", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    
-    # 按鈕區：儲存與分析
     b1, b2, b3 = st.columns([1, 1, 2])
     with b1:
         save_btn = st.form_submit_button("💾 僅儲存資料")
@@ -311,7 +265,6 @@ if save_btn or analyze_btn:
     elif not client_name:
         st.error("⚠️ 客戶姓名為必填！")
     else:
-        # 1. 整理表單資料
         form_data = {
             "name": client_name, "stage": s_stage, "gender": gender, 
             "birthday": str(birthday), "income": income, "job": job, "interests": interests,
@@ -320,25 +273,32 @@ if save_btn or analyze_btn:
             "cov_radio": cov_radio, "cov_chemo": cov_chemo, "cov_ltc": cov_ltc, 
             "cov_dis": cov_dis, "cov_life": cov_life, "history_note": history_note,
             "quotes": quotes, "target_product": target_product,
-            "last_strategy": st.session_state.current_strategy, # 保留上次分析結果
-            "chat_history": st.session_state.chat_history     # 保留對話紀錄
+            "last_strategy": st.session_state.current_strategy,
+            "chat_history": st.session_state.chat_history
         }
         
-        # 2. 存入資料庫
         save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
         st.success(f"✅ {client_name} 的資料已更新！")
         
-        # 3. 如果是分析按鈕，則執行 AI 分析
         if analyze_btn:
             if not api_key:
                 st.error("⚠️ 請輸入 API Key")
             else:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
+                # ★★★ 自動模型選擇邏輯 (修復 404 錯誤) ★★★
+                try:
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    # 優先找 flash，沒有就找 pro，再沒有就用第一個
+                    selected_model = next((m for m in available_models if 'flash' in m), None)
+                    if not selected_model:
+                        selected_model = next((m for m in available_models if 'pro' in m), available_models[0])
+                    model = genai.GenerativeModel(selected_model)
+                except:
+                    # 如果抓不到清單，就退回到最穩定的 gemini-pro
+                    model = genai.GenerativeModel('gemini-pro')
+                # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
                 life_path_num = calculate_life_path_number(birthday)
-                
-                # 智慧判斷邏輯
                 coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
                 has_coverage_data = any(x.strip() for x in coverage_inputs)
                 has_medical_intent = "醫療" in target_product
@@ -363,18 +323,15 @@ if save_btn or analyze_btn:
                 output_requirements = """
                 1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
                 """
-                
                 if show_gap_analysis:
                     output_requirements += """
                 2. **[保障額度健康度檢核表]** (項目 | 目前 | Mars標準 | 狀態)
                     """
-                
                 output_requirements += f"""
                 3. **[戰略目標 ({s_stage})]**
                 4. **[建議方向一]**
                 5. **[建議方向二]**
                 """
-                
                 if show_gap_analysis:
                     output_requirements += """
                 6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
@@ -401,17 +358,14 @@ if save_btn or analyze_btn:
                     try:
                         response = model.generate_content(final_prompt)
                         st.session_state.current_strategy = response.text
-                        st.session_state.chat_history = [] # 新分析則重置對話，也可選擇保留
-                        
-                        # 4. 分析完後再次儲存，把最新的分析結果存進去
+                        st.session_state.chat_history = []
                         form_data['last_strategy'] = response.text
                         save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
-                        st.rerun() # 重新整理以顯示結果
-                        
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"錯誤：{e}")
+                        st.error(f"分析錯誤：{e}")
 
-# --- 顯示分析結果與對話 ---
+# --- 顯示結果 ---
 if st.session_state.current_strategy:
     st.markdown("---")
     st.markdown(f"<h3 style='text-align: center; border:none;'>✅ 教練戰略報告 ({st.session_state.current_client_data.get('name', '客戶')})</h3>", unsafe_allow_html=True)
@@ -444,12 +398,9 @@ if st.session_state.current_strategy:
                     response = model.generate_content(chat_prompt)
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                    
-                    # 對話後自動儲存對話紀錄
                     current_data = st.session_state.current_client_data
                     if current_data:
                         current_data['chat_history'] = st.session_state.chat_history
                         save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
-                        
                 except Exception as e:
                     st.error(f"回覆失敗：{e}")
