@@ -34,7 +34,7 @@ st.markdown("""
         color: #ffffff !important; font-size: 14px !important; font-weight: 600;
     }
     
-    /* 下拉選單與日曆修復 */
+    /* 下拉選單修復 */
     div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
     div[data-baseweb="menu"] div { color: #000000 !important; }
     li[aria-selected="true"], li[data-baseweb="option"]:hover { background-color: #ffe6cc !important; }
@@ -82,8 +82,22 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
+    
+    /* Expander 樣式微調 */
+    .streamlit-expanderHeader {
+        background-color: rgba(255,255,255,0.05) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 153, 51, 0.3) !important;
+        border-radius: 8px;
+    }
+    .streamlit-expanderContent {
+        border: 1px solid rgba(255, 153, 51, 0.3);
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        background-color: rgba(0,0,0,0.2);
+    }
+
     #MainMenu, footer, header {visibility: hidden;}
-    .streamlit-expanderHeader { color: #ffffff !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,25 +421,43 @@ if st.session_state.current_strategy:
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
-    # ★★★ 新增：對話紀錄收合區 (預設展開) ★★★
-    with st.expander("💬 對話紀錄 (點擊收合)", expanded=True):
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-                # 每一則對話都有複製按鈕
-                if message["role"] == "assistant":
-                    with st.expander("📝 複製此回覆"):
-                        st.code(message["content"], language="markdown")
+    # --- ★★★ 對話紀錄顯示邏輯 (改為獨立 Expander) ★★★ ---
+    messages = st.session_state.chat_history
+    # 篩選出使用者提問的索引
+    user_indices = [i for i, m in enumerate(messages) if m['role'] == 'user']
 
+    if not user_indices:
+        st.info("尚未開始對話，請在下方輸入問題...")
+    else:
+        # 迴圈顯示每一組對話
+        for idx, i in enumerate(user_indices):
+            question = messages[i]['content']
+            answer = None
+            if i + 1 < len(messages) and messages[i+1]['role'] == 'assistant':
+                answer = messages[i+1]['content']
+            
+            # 設定是否預設展開：只有「最後一則」對話預設展開，其他的收合
+            is_expanded = (idx == len(user_indices) - 1)
+            
+            # 使用 Expander 包裹每一組對話
+            expander_title = f"💬 第 {idx+1} 回合：{question[:30]}..." if len(question) > 30 else f"💬 第 {idx+1} 回合：{question}"
+            
+            with st.expander(expander_title, expanded=is_expanded):
+                st.markdown(f"**🙋‍♂️ 你的提問**：\n{question}")
+                st.markdown("---")
+                if answer:
+                    st.markdown(f"**🤖 教練回覆**：\n{answer}")
+                    # 每一則都保留複製按鈕
+                    st.code(answer, language="markdown")
+                else:
+                    st.warning("教練正在思考中...")
+
+    # --- 輸入框 ---
     if prompt := st.chat_input("輸入問題..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        # 注意：由於 chat_input 位於底部，輸入後畫面會刷新，顯示在上面的收合區中
-        
-        # 為了避免畫面跳動太快，這裡先不手動顯示 user message，而是等待 rerun
-        # 但 Streamlit 機制是 rerun 後才會執行下面的 code，所以...
         
         if not model:
-            st.error("請先輸入 API Key 才能啟用教練陪練")
+            st.error("請先輸入 API Key")
         else:
             with st.spinner("教練思考中..."):
                 chat_prompt = f"""
@@ -436,14 +468,19 @@ if st.session_state.current_strategy:
                 """
                 try:
                     response = model.generate_content(chat_prompt)
+                    # 加入對話紀錄
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
-                    # ★★★ 自動存檔：對話後立即更新資料庫 ★★★
+                    # ★★★ 自動存檔邏輯 (關鍵) ★★★
                     current_data = st.session_state.current_client_data
                     if current_data:
+                        # 更新 Session 中的資料
                         current_data['chat_history'] = st.session_state.chat_history
+                        # 寫入資料庫
                         save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
                     
-                    st.rerun() # 強制刷新以顯示最新對話
+                    # 強制刷新頁面，讓剛剛的對話顯示出來
+                    st.rerun()
+                    
                 except Exception as e:
                     st.error(f"回覆失敗：{e}")
