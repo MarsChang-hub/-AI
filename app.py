@@ -9,7 +9,7 @@ import re
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 底層視覺修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 高質感報告 CSS) ---
 st.markdown("""
 <style>
     :root {
@@ -63,16 +63,80 @@ st.markdown("""
         border: none;
     }
 
-    /* 報告框 */
+    /* --- ★★★ 報告框 (Report Box) 高質感優化 ★★★ --- */
     .report-box {
         background-color: #ffffff !important;
-        color: #000000 !important;
-        padding: 30px;
+        color: #333333 !important;
+        padding: 40px; /* 增加內距，更像正式文件 */
         border-radius: 8px;
-        border-top: 6px solid var(--text-orange);
-        margin-top: 15px;
+        border-top: 8px solid var(--text-orange); /* 頂部橘色加粗 */
+        margin-top: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5); /* 增加陰影立體感 */
+        font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
-    .report-box * { color: #000000 !important; }
+    
+    /* 報告標題優化 */
+    .report-box h1, .report-box h2 {
+        color: #001a33 !important; /* 深藍色標題 */
+        border-bottom: 2px solid #ff9933; /* 標題下底線 */
+        padding-bottom: 10px;
+        margin-top: 30px;
+        margin-bottom: 20px;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+    .report-box h3 {
+        color: #cc4400 !important; /* 深橘色副標題 */
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    
+    /* 內文優化 */
+    .report-box p, .report-box li {
+        color: #333333 !important; /* 深灰色內文，閱讀舒適 */
+        line-height: 1.8; /* 增加行高 */
+        font-size: 16px;
+    }
+    .report-box strong {
+        color: #001a33 !important; /* 粗體字用深藍色強調 */
+        background-color: #fff5e6; /* 粗體字螢光筆效果 */
+        padding: 0 4px;
+    }
+
+    /* --- ★★★ 美型表格 (Table) 設計 ★★★ --- */
+    .report-box table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 15px;
+        border-radius: 8px;
+        overflow: hidden; /* 讓圓角生效 */
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .report-box th {
+        background-color: #001a33 !important; /* 表頭深藍 */
+        color: #ffffff !important; /* 表頭白字 */
+        padding: 15px;
+        text-align: left;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .report-box td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eeeeee;
+        color: #333333 !important;
+    }
+    /* 表格斑馬紋與懸停效果 */
+    .report-box tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    .report-box tr:hover {
+        background-color: #fff5e6; /* 滑鼠移過去變淺橘色 */
+        transition: background-color 0.2s;
+    }
+    /* ------------------------------------------------ */
     
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
@@ -82,22 +146,8 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
-    
-    /* Expander 樣式微調 */
-    .streamlit-expanderHeader {
-        background-color: rgba(255,255,255,0.05) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 153, 51, 0.3) !important;
-        border-radius: 8px;
-    }
-    .streamlit-expanderContent {
-        border: 1px solid rgba(255, 153, 51, 0.3);
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        background-color: rgba(0,0,0,0.2);
-    }
-
     #MainMenu, footer, header {visibility: hidden;}
+    .streamlit-expanderHeader { color: #ffffff !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -368,8 +418,13 @@ if save_btn or analyze_btn:
                 1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
                 """
                 if show_gap_analysis:
+                    # ★★★ 關鍵更新：要求 Markdown Table 格式 ★★★
                     output_requirements += """
-                2. **[保障額度健康度檢核表]** (項目 | 目前 | Mars標準 | 狀態)
+                2. **[保障額度健康度檢核表]**
+                (請製作一個 Markdown 表格，欄位如下：)
+                | 檢核項目 | 目前額度 | Mars標準 | 狀態 | 
+                | :--- | :--- | :--- | :---: |
+                (狀態欄請使用 ✅ / ⚠️ / 🆘 代表：及格 / 略低 / 嚴重不足)
                     """
                 output_requirements += f"""
                 3. **[戰略目標 ({s_stage})]**
@@ -383,6 +438,8 @@ if save_btn or analyze_btn:
 
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
+                請使用豐富的 Markdown 語法讓報告美觀易讀（使用粗體、條列、表格）。
+                
                 【戰略位置】{s_stage}
                 【客戶】{client_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
                 【語錄】"{quotes}"
@@ -417,29 +474,25 @@ if st.session_state.current_strategy:
     with st.expander("📝 複製完整報告"):
         st.code(st.session_state.current_strategy, language="markdown")
     
+    # 渲染報告 (吃 CSS 設定)
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
-    # --- ★★★ 對話紀錄顯示邏輯 (改為獨立 Expander) ★★★ ---
+    # 對話紀錄顯示 (獨立收合區)
     messages = st.session_state.chat_history
-    # 篩選出使用者提問的索引
     user_indices = [i for i, m in enumerate(messages) if m['role'] == 'user']
 
     if not user_indices:
         st.info("尚未開始對話，請在下方輸入問題...")
     else:
-        # 迴圈顯示每一組對話
         for idx, i in enumerate(user_indices):
             question = messages[i]['content']
             answer = None
             if i + 1 < len(messages) and messages[i+1]['role'] == 'assistant':
                 answer = messages[i+1]['content']
             
-            # 設定是否預設展開：只有「最後一則」對話預設展開，其他的收合
             is_expanded = (idx == len(user_indices) - 1)
-            
-            # 使用 Expander 包裹每一組對話
             expander_title = f"💬 第 {idx+1} 回合：{question[:30]}..." if len(question) > 30 else f"💬 第 {idx+1} 回合：{question}"
             
             with st.expander(expander_title, expanded=is_expanded):
@@ -447,12 +500,10 @@ if st.session_state.current_strategy:
                 st.markdown("---")
                 if answer:
                     st.markdown(f"**🤖 教練回覆**：\n{answer}")
-                    # 每一則都保留複製按鈕
                     st.code(answer, language="markdown")
                 else:
                     st.warning("教練正在思考中...")
 
-    # --- 輸入框 ---
     if prompt := st.chat_input("輸入問題..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         
@@ -468,19 +519,13 @@ if st.session_state.current_strategy:
                 """
                 try:
                     response = model.generate_content(chat_prompt)
-                    # 加入對話紀錄
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
-                    # ★★★ 自動存檔邏輯 (關鍵) ★★★
                     current_data = st.session_state.current_client_data
                     if current_data:
-                        # 更新 Session 中的資料
                         current_data['chat_history'] = st.session_state.chat_history
-                        # 寫入資料庫
                         save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
                     
-                    # 強制刷新頁面，讓剛剛的對話顯示出來
                     st.rerun()
-                    
                 except Exception as e:
                     st.error(f"回覆失敗：{e}")
