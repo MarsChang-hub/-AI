@@ -63,80 +63,41 @@ st.markdown("""
         border: none;
     }
 
-    /* --- ★★★ 報告框 (Report Box) 高質感優化 ★★★ --- */
+    /* 報告框優化 */
     .report-box {
         background-color: #ffffff !important;
         color: #333333 !important;
-        padding: 40px; /* 增加內距，更像正式文件 */
+        padding: 40px;
         border-radius: 8px;
-        border-top: 8px solid var(--text-orange); /* 頂部橘色加粗 */
+        border-top: 8px solid var(--text-orange);
         margin-top: 20px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5); /* 增加陰影立體感 */
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
-    
-    /* 報告標題優化 */
     .report-box h1, .report-box h2 {
-        color: #001a33 !important; /* 深藍色標題 */
-        border-bottom: 2px solid #ff9933; /* 標題下底線 */
+        color: #001a33 !important;
+        border-bottom: 2px solid #ff9933;
         padding-bottom: 10px;
         margin-top: 30px;
-        margin-bottom: 20px;
         font-weight: 800;
-        letter-spacing: 1px;
     }
-    .report-box h3 {
-        color: #cc4400 !important; /* 深橘色副標題 */
-        margin-top: 20px;
-        margin-bottom: 10px;
-        font-weight: 700;
-    }
-    
-    /* 內文優化 */
-    .report-box p, .report-box li {
-        color: #333333 !important; /* 深灰色內文，閱讀舒適 */
-        line-height: 1.8; /* 增加行高 */
-        font-size: 16px;
-    }
-    .report-box strong {
-        color: #001a33 !important; /* 粗體字用深藍色強調 */
-        background-color: #fff5e6; /* 粗體字螢光筆效果 */
-        padding: 0 4px;
-    }
+    .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
+    .report-box p, .report-box li { color: #333333 !important; line-height: 1.8; font-size: 16px; }
+    .report-box strong { color: #001a33 !important; background-color: #fff5e6; padding: 0 4px; }
 
-    /* --- ★★★ 美型表格 (Table) 設計 ★★★ --- */
+    /* 表格設計 */
     .report-box table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-        font-size: 15px;
-        border-radius: 8px;
-        overflow: hidden; /* 讓圓角生效 */
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px;
+        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
     .report-box th {
-        background-color: #001a33 !important; /* 表頭深藍 */
-        color: #ffffff !important; /* 表頭白字 */
-        padding: 15px;
-        text-align: left;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        background-color: #001a33 !important; color: #ffffff !important; padding: 15px; text-align: left;
     }
     .report-box td {
-        padding: 12px 15px;
-        border-bottom: 1px solid #eeeeee;
-        color: #333333 !important;
+        padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #333333 !important;
     }
-    /* 表格斑馬紋與懸停效果 */
-    .report-box tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
-    .report-box tr:hover {
-        background-color: #fff5e6; /* 滑鼠移過去變淺橘色 */
-        transition: background-color 0.2s;
-    }
-    /* ------------------------------------------------ */
+    .report-box tr:nth-child(even) { background-color: #f8f9fa; }
+    .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
@@ -330,8 +291,9 @@ with st.form("client_form"):
         with g2:
             cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""), placeholder="標準:50")
             cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""), placeholder="標準:30")
-            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:6000")
-            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:6000")
+            # ★★★ 修改點：標準下修為 3000 ★★★
+            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
+            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
         with g3:
             cov_ltc = st.text_input("長照月給付", value=data.get("cov_ltc", ""), placeholder="標準:3萬")
             cov_dis = st.text_input("失能月給付", value=data.get("cov_dis", ""), placeholder="標準:3萬")
@@ -398,6 +360,7 @@ if save_btn or analyze_btn:
                 has_medical_intent = "醫療" in target_product
                 show_gap_analysis = has_coverage_data or has_medical_intent
 
+                # ★★★ 修改點：詳細盤點中的標準更新為 3000 ★★★
                 detailed_coverage = f"""
                 【詳細保障額度盤點】
                 - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
@@ -406,8 +369,8 @@ if save_btn or analyze_btn:
                 - 意外實支：{cov_acc_reim if cov_acc_reim else '0'} 萬 (標準: 10萬)
                 - 癌症一次金：{cov_cancer if cov_cancer else '0'} 萬 (標準: 50萬)
                 - 重大傷病：{cov_major if cov_major else '0'} 萬 (標準: 30萬)
-                - 放療/次：{cov_radio if cov_radio else '0'} (標準: 6000)
-                - 化療/次：{cov_chemo if cov_chemo else '0'} (標準: 6000)
+                - 放療/次：{cov_radio if cov_radio else '0'} (標準: 3000)
+                - 化療/次：{cov_chemo if cov_chemo else '0'} (標準: 3000)
                 - 長照月給付：{cov_ltc if cov_ltc else '0'} (標準: 3萬)
                 - 失能月給付：{cov_dis if cov_dis else '0'} (標準: 3萬)
                 - 壽險：{cov_life if cov_life else '0'} 萬 (標準: 5倍年薪)
@@ -418,7 +381,6 @@ if save_btn or analyze_btn:
                 1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
                 """
                 if show_gap_analysis:
-                    # ★★★ 關鍵更新：要求 Markdown Table 格式 ★★★
                     output_requirements += """
                 2. **[保障額度健康度檢核表]**
                 (請製作一個 Markdown 表格，欄位如下：)
@@ -436,6 +398,7 @@ if save_btn or analyze_btn:
                 6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
                     """
 
+                # ★★★ 修改點：Prompt 裡的標準更新為 3000 ★★★
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
                 請使用豐富的 Markdown 語法讓報告美觀易讀（使用粗體、條列、表格）。
@@ -448,7 +411,7 @@ if save_btn or analyze_btn:
                 
                 【Mars Chang 標準】
                 1.住院日額:4000。2.醫療實支:20萬。3.定額手術:1000。
-                4.意外實支:10萬。5.癌/重:50/30萬。6.放化療:6000。
+                4.意外實支:10萬。5.癌/重:50/30萬。6.放化療:3000。
                 7.長照失能:3萬。8.壽險:5倍年薪。
 
                 【輸出要求】
@@ -474,12 +437,10 @@ if st.session_state.current_strategy:
     with st.expander("📝 複製完整報告"):
         st.code(st.session_state.current_strategy, language="markdown")
     
-    # 渲染報告 (吃 CSS 設定)
     st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
-    # 對話紀錄顯示 (獨立收合區)
     messages = st.session_state.chat_history
     user_indices = [i for i, m in enumerate(messages) if m['role'] == 'user']
 
