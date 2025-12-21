@@ -100,7 +100,7 @@ st.markdown("""
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- 教練陪練室獨立對話框 (Expander) --- */
+    /* 教練陪練室獨立對話框 */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -198,8 +198,8 @@ def calculate_life_path_number(birth_text):
 
 # --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
-    max_retries = 5 # 保持 5 次重試
-    base_delay = 5  
+    max_retries = 5 
+    base_delay = 5 
     
     for attempt in range(max_retries):
         try:
@@ -217,6 +217,37 @@ def generate_content_with_retry(model_instance, prompt):
                 placeholder.empty()
             else:
                 raise e 
+
+# --- ★★★ 核心：智能尋找合法的 1.5 Flash 名稱 (解決 404) ★★★ ---
+def get_verified_flash_model(api_key):
+    genai.configure(api_key=api_key)
+    try:
+        # 1. 取得所有可用模型清單 (這是最重要的一步，不要盲猜)
+        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 2. 優先尋找明確的 1.5 Flash (且排除 8b 這種測試版，排除 2.0/2.5)
+        # 我們遍歷清單，尋找包含 "1.5" 和 "flash" 的項目
+        candidates = [m for m in all_models if "1.5" in m and "flash" in m]
+        
+        # 3. 如果有找到，優先選名字最短的 (通常是穩定版)，或者選包含 '001', 'latest' 的
+        if candidates:
+            # 優先選 models/gemini-1.5-flash
+            best_choice = next((m for m in candidates if m.endswith("gemini-1.5-flash")), None)
+            if not best_choice:
+                best_choice = candidates[0] # 否則選第一個找到的
+            return genai.GenerativeModel(best_choice)
+            
+        # 4. 如果 1.5 Flash 沒找到，退而求其次找 Pro 1.5
+        pro_candidates = [m for m in all_models if "1.5" in m and "pro" in m]
+        if pro_candidates:
+            return genai.GenerativeModel(pro_candidates[0])
+            
+        # 5. 最後防線：Gemini Pro (Legacy)
+        return genai.GenerativeModel("gemini-pro")
+        
+    except Exception as e:
+        # 如果連 list_models 都失敗，只能盲猜一個最可能的
+        return genai.GenerativeModel("gemini-1.5-flash")
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -277,16 +308,10 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
-# --- ★★★ 核心：強制鎖定使用 'gemini-1.5-flash' (最穩定版本) ★★★ ---
 model = None
 if api_key:
-    genai.configure(api_key=api_key)
-    try:
-        # 直接使用官方標準名稱
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        # 萬一連這個都掛了，最後退路
-        model = genai.GenerativeModel('gemini-pro')
+    # ★★★ 使用智能驗證函數抓取正確 ID ★★★
+    model = get_verified_flash_model(api_key)
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -455,7 +480,7 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # 使用自動重試函數 (model 已鎖定為 1.5 flash)
+                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -515,7 +540,7 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    # 使用自動重試函數 (model 已鎖定為 1.5 flash)
+                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
