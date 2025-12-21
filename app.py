@@ -7,13 +7,7 @@ import pandas as pd
 import re
 import time
 import os
-
-# --- 檢查 PyPDF2 是否安裝 ---
-try:
-    from PyPDF2 import PdfReader
-    pypdf_installed = True
-except ImportError:
-    pypdf_installed = False
+import pdfplumber # 改用這個更強大的庫
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -225,23 +219,19 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 自動讀取後台 PDF 函數 (除錯版) ★★★ ---
+# --- ★★★ 自動讀取後台 PDF 函數 (使用 pdfplumber) ★★★ ---
 def load_local_knowledge_base():
-    """自動掃描當前目錄下的 PDF 檔案並載入"""
+    """自動掃描當前目錄下的 PDF 檔案並載入，使用 pdfplumber 避免解碼錯誤"""
     text_content = ""
     file_count = 0
     debug_msg = []
     
-    if not pypdf_installed:
-        return "", 0, ["❌ PyPDF2 未安裝，請檢查 requirements.txt"]
-
     try:
         # 取得當前目錄下所有檔案
         current_files = os.listdir('.')
         pdf_files = [f for f in current_files if f.lower().endswith('.pdf')]
         
         debug_msg.append(f"📂 掃描路徑: {os.getcwd()}")
-        debug_msg.append(f"📄 發現檔案: {current_files}")
         
         if not pdf_files:
             debug_msg.append("⚠️ 未發現任何 .pdf 檔案")
@@ -249,14 +239,17 @@ def load_local_knowledge_base():
 
         for file in pdf_files:
             try:
-                reader = PdfReader(file)
-                file_text = ""
-                for page in reader.pages:
-                    file_text += page.extract_text() + "\n"
-                
-                text_content += f"\n--- 文件開始: {file} ---\n{file_text}\n--- 文件結束: {file} ---\n"
-                file_count += 1
-                debug_msg.append(f"✅ 成功讀取: {file}")
+                # 使用 pdfplumber 開啟
+                with pdfplumber.open(file) as pdf:
+                    file_text = ""
+                    for page in pdf.pages:
+                        extracted = page.extract_text()
+                        if extracted:
+                            file_text += extracted + "\n"
+                    
+                    text_content += f"\n--- 文件開始: {file} ---\n{file_text}\n--- 文件結束: {file} ---\n"
+                    file_count += 1
+                    debug_msg.append(f"✅ 成功讀取: {file}")
             except Exception as e:
                 debug_msg.append(f"❌ 讀取失敗 {file}: {e}")
         
@@ -353,19 +346,17 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # ★★★ 知識庫診斷區 (重點功能) ★★★
+    # ★★★ 知識庫診斷區 ★★★
     st.markdown("### 📚 知識庫狀態")
     if st.session_state.knowledge_files_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.knowledge_files_count} 份手冊")
     else:
         st.error("❌ 未掛載任何文件")
     
-    with st.expander("🔍 系統檔案診斷 (點擊查看)"):
-        st.write("系統掃描日誌：")
+    with st.expander("🔍 系統檔案診斷"):
         for msg in kb_debug:
             st.write(msg)
-        
-        if st.button("🔄 強制重新載入檔案"):
+        if st.button("🔄 強制重新載入"):
             st.session_state.knowledge_files_count = 0
             st.session_state.knowledge_base_text = ""
             st.rerun()
@@ -641,8 +632,8 @@ if st.session_state.current_strategy:
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
                     【📚 企業知識庫參考資料】
-                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
-                    {st.session_state.knowledge_base_text[:30000]} ...
+                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容回答問題，若無相關資訊則說明「手冊中未提及」)
+                    {st.session_state.knowledge_base_text[:20000]} ...
                     """
                 
                 chat_prompt = f"""
