@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 高質感報告 + 陪練室優化) ---
+# --- 🎨 風格設定 (深藍專業版 + 介面按鈕修復) ---
 st.markdown("""
 <style>
     :root {
@@ -117,6 +117,11 @@ st.markdown("""
         padding: 15px;
     }
     
+    /* ★★★ 關鍵修復：隱藏漢堡選單，但保留左上角展開箭頭 ★★★ */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    /* header {visibility: hidden;}  <-- 這行刪除，就能讓箭頭回來了 */
+    
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
         color: rgba(255, 153, 51, 0.9);
@@ -125,7 +130,6 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif;
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
-    #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,14 +202,14 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 核心：過濾模型邏輯 (包含 Gemma 與 Gemini) ★★★ ---
+# --- ★★★ 核心：過濾模型邏輯 (Gemma 優先) ★★★ ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
         # 取得所有可用模型
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        # 定義使用者的優先清單 (嘗試模糊比對)
+        # 根據您的需求定義優先關鍵字
         priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
         
         filtered_list = []
@@ -214,13 +218,13 @@ def get_filtered_models(api_key):
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
             
-        # 2. 如果真的都沒找到，放入保底的 Flash 1.5
+        # 2. 如果真的都沒找到 (Gemma 3 可能尚未開放)，放入保底的 Flash 1.5
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
             
-        # 3. 確保不重複
+        # 3. 確保不重複並排序
         filtered_list = list(set(filtered_list))
-        filtered_list.sort() # 排序
+        filtered_list.sort()
         
         return filtered_list
     except:
@@ -248,51 +252,15 @@ def generate_content_with_retry(model_instance, prompt):
             else:
                 raise e 
 
-# --- 側邊欄：設定與名單 ---
+# --- ★★★ 側邊欄配置 (名單在上，設定在下) ★★★ ---
 with st.sidebar:
-    st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
-    
-    # 1. 輸入 API Key
-    if "GOOGLE_API_KEY" in st.secrets:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-    else:
-        api_key = st.text_input("請輸入 Google API Key", type="password")
-
-    model = None
-    if api_key:
-        # 2. ★★★ 模型選擇器 (帶有綠燈與額度提示) ★★★
-        try:
-            available_models = get_filtered_models(api_key)
-            
-            if available_models:
-                # 下拉選單：加上紅字提示
-                selected_model_name = st.selectbox(
-                    "🤖 選擇 AI 模型 (若額度不足請更換)", 
-                    available_models, 
-                    index=0
-                )
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(selected_model_name)
-                
-                # ★★★ 綠燈回歸 ★★★
-                st.success(f"🟢 系統狀態：已連線")
-                st.caption(f"使用中: {selected_model_name}")
-            else:
-                # 萬一真的抓不到，手動輸入模式
-                st.warning("⚠️ 無法自動取得模型清單，使用預設值")
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                st.success(f"🟢 系統狀態：強制連線 (1.5 Flash)")
-                
-        except Exception as e:
-            st.error(f"連線錯誤: {e}")
-
-    st.markdown("---")
+    # 1. 上方：客戶名單管理 (最優先)
     st.markdown("### 🗂️ 客戶名單管理")
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
     
     if user_key_input:
         st.session_state.user_key = user_key_input
-        st.success(f"已載入名單")
+        # 名單載入成功提示移掉，保持版面乾淨，改為顯示數量
         
         col_new, col_del = st.columns([1, 1])
         with col_new:
@@ -316,7 +284,6 @@ with st.sidebar:
         clients_df = get_clients_by_key(user_key_input)
         
         if not clients_df.empty:
-            st.markdown("---")
             stages = ["S1", "S2", "S3", "S4", "S5", "S6"]
             for stage_prefix in stages:
                 stage_clients = clients_df[clients_df['stage'].str.startswith(stage_prefix)]
@@ -330,7 +297,44 @@ with st.sidebar:
                                 st.session_state.chat_history = loaded_data.get('chat_history', [])
                                 st.rerun()
     else:
-        st.warning("請輸入金鑰以存取您的名單")
+        st.warning("請輸入金鑰以存取名單")
+
+    # 2. 分隔線 (將名單與設定分開)
+    st.markdown("---")
+
+    # 3. 下方：系統設定 (包含 API Key 和 模型選擇)
+    st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
+    
+    if "GOOGLE_API_KEY" in st.secrets:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+    else:
+        api_key = st.text_input("請輸入 Google API Key", type="password")
+
+    model = None
+    if api_key:
+        try:
+            available_models = get_filtered_models(api_key)
+            
+            if available_models:
+                # 選擇器：附帶紅色警語
+                selected_model_name = st.selectbox(
+                    "🤖 選擇 AI 模型 (若額度不足請切換)", 
+                    available_models, 
+                    index=0
+                )
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(selected_model_name)
+                
+                # 綠燈狀態
+                st.success(f"🟢 系統狀態：已連線")
+                st.caption(f"使用中: {selected_model_name}")
+            else:
+                st.warning("⚠️ 無法取得模型清單，使用預設值")
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                st.success(f"🟢 系統狀態：強制連線 (1.5 Flash)")
+                
+        except Exception as e:
+            st.error(f"連線錯誤: {e}")
 
 # --- 主畫面 ---
 col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
@@ -505,6 +509,7 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
+                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
