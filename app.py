@@ -185,6 +185,8 @@ if "current_strategy" not in st.session_state:
     st.session_state.current_strategy = None
 if "user_key" not in st.session_state:
     st.session_state.user_key = ""
+if "active_model_name" not in st.session_state:
+    st.session_state.active_model_name = "尚未連線"
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -196,15 +198,31 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 核心：獲取所有可用模型 (供選單使用) ★★★ ---
-def get_all_available_models(api_key):
+# --- ★★★ 核心：過濾模型邏輯 (包含 Gemma 與 Gemini) ★★★ ---
+def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
-        models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                models.append(m.name)
-        return models
+        # 取得所有可用模型
+        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 定義使用者的優先清單 (嘗試模糊比對)
+        priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
+        
+        filtered_list = []
+        # 1. 先找優先清單裡的
+        for key in priority_keywords:
+            matches = [m for m in all_models if key in m]
+            filtered_list.extend(matches)
+            
+        # 2. 如果真的都沒找到，放入保底的 Flash 1.5
+        if not filtered_list:
+            filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
+            
+        # 3. 確保不重複
+        filtered_list = list(set(filtered_list))
+        filtered_list.sort() # 排序
+        
+        return filtered_list
     except:
         return []
 
@@ -242,22 +260,29 @@ with st.sidebar:
 
     model = None
     if api_key:
-        # 2. ★★★ 模型選擇器 (Model Selector) ★★★
+        # 2. ★★★ 模型選擇器 (帶有綠燈與額度提示) ★★★
         try:
-            available_models = get_all_available_models(api_key)
+            available_models = get_filtered_models(api_key)
+            
             if available_models:
-                # 嘗試自動選定最穩定的 1.5 Flash
-                default_index = 0
-                for i, m in enumerate(available_models):
-                    if "gemini-1.5-flash" in m and "8b" not in m and "latest" not in m: # 找最標準的 flash
-                        default_index = i
-                        break
-                
-                selected_model_name = st.selectbox("🤖 選擇 AI 模型", available_models, index=default_index, help="若遇到 429 錯誤，請嘗試切換不同模型")
+                # 下拉選單：加上紅字提示
+                selected_model_name = st.selectbox(
+                    "🤖 選擇 AI 模型 (若額度不足請更換)", 
+                    available_models, 
+                    index=0
+                )
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(selected_model_name)
+                
+                # ★★★ 綠燈回歸 ★★★
+                st.success(f"🟢 系統狀態：已連線")
+                st.caption(f"使用中: {selected_model_name}")
             else:
-                st.error("無法取得模型清單，請檢查 API Key")
+                # 萬一真的抓不到，手動輸入模式
+                st.warning("⚠️ 無法自動取得模型清單，使用預設值")
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                st.success(f"🟢 系統狀態：強制連線 (1.5 Flash)")
+                
         except Exception as e:
             st.error(f"連線錯誤: {e}")
 
