@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 陪練室獨立方塊 CSS) ---
+# --- 🎨 風格設定 (深藍專業版 + 高質感報告 CSS + 陪練室優化) ---
 st.markdown("""
 <style>
     :root {
@@ -101,21 +101,19 @@ st.markdown("""
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
     /* --- ★★★ 教練陪練室獨立對話框 (Expander) 美化 ★★★ --- */
-    /* 讓每一個對話框看起來像獨立的卡片 */
     .streamlit-expanderHeader {
-        background-color: rgba(255, 255, 255, 0.1) !important; /* 微透亮底 */
-        color: #ff9933 !important; /* 標題橘色 */
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #ff9933 !important;
         border: 1px solid rgba(255, 153, 51, 0.3) !important;
         border-radius: 8px;
         font-weight: bold;
         margin-top: 10px;
     }
-    /* 展開後的內容區塊 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: rgba(0, 0, 0, 0.2); /* 深色背景襯托文字 */
+        background-color: rgba(0, 0, 0, 0.2);
         padding: 15px;
     }
     
@@ -198,10 +196,10 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ API 自動重試函數 ★★★ ---
+# --- ★★★ API 自動重試函數 (延長等待時間) ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
-    base_delay = 5 
+    base_delay = 20 # ★★★ 增加基礎等待時間到 20秒 (因為 Google 叫我們等 19.8s) ★★★
     
     for attempt in range(max_retries):
         try:
@@ -211,7 +209,7 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1) + 5
+                wait_time = base_delay * (attempt + 1)
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -219,20 +217,6 @@ def generate_content_with_retry(model_instance, prompt):
                 placeholder.empty()
             else:
                 raise e 
-
-# --- ★★★ 核心：優先鎖定 1.5 Flash ★★★ ---
-def get_flash_model(api_key):
-    genai.configure(api_key=api_key)
-    try:
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        target_model = next((m for m in models if 'gemini-1.5-flash' in m), None)
-        if not target_model:
-            target_model = next((m for m in models if 'flash' in m), None)
-        if not target_model:
-            target_model = next((m for m in models if 'pro' in m), models[0])
-        return genai.GenerativeModel(target_model)
-    except:
-        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -293,9 +277,12 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
+# --- ★★★ 核心：強制鎖定使用 'gemini-1.5-flash' ★★★ ---
 model = None
 if api_key:
-    model = get_flash_model(api_key)
+    genai.configure(api_key=api_key)
+    # 直接指定，不進行任何搜尋，避免抓到 2.5
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -464,6 +451,7 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
+                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -523,6 +511,7 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
+                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
