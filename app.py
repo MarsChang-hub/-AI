@@ -7,7 +7,13 @@ import pandas as pd
 import re
 import time
 import os
-from PyPDF2 import PdfReader # 必須確保 requirements.txt 有加入 PyPDF2
+
+# --- 檢查 PyPDF2 是否安裝 ---
+try:
+    from PyPDF2 import PdfReader
+    pypdf_installed = True
+except ImportError:
+    pypdf_installed = False
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -219,17 +225,29 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 自動讀取後台 PDF 函數 ★★★ ---
+# --- ★★★ 自動讀取後台 PDF 函數 (除錯版) ★★★ ---
 def load_local_knowledge_base():
     """自動掃描當前目錄下的 PDF 檔案並載入"""
     text_content = ""
     file_count = 0
+    debug_msg = []
     
+    if not pypdf_installed:
+        return "", 0, ["❌ PyPDF2 未安裝，請檢查 requirements.txt"]
+
     try:
         # 取得當前目錄下所有檔案
-        files = [f for f in os.listdir('.') if f.endswith('.pdf')]
+        current_files = os.listdir('.')
+        pdf_files = [f for f in current_files if f.lower().endswith('.pdf')]
         
-        for file in files:
+        debug_msg.append(f"📂 掃描路徑: {os.getcwd()}")
+        debug_msg.append(f"📄 發現檔案: {current_files}")
+        
+        if not pdf_files:
+            debug_msg.append("⚠️ 未發現任何 .pdf 檔案")
+            return "", 0, debug_msg
+
+        for file in pdf_files:
             try:
                 reader = PdfReader(file)
                 file_text = ""
@@ -238,20 +256,19 @@ def load_local_knowledge_base():
                 
                 text_content += f"\n--- 文件開始: {file} ---\n{file_text}\n--- 文件結束: {file} ---\n"
                 file_count += 1
-                # print(f"Loaded: {file}") # 後台除錯用
+                debug_msg.append(f"✅ 成功讀取: {file}")
             except Exception as e:
-                pass # 忽略讀取錯誤的檔案
+                debug_msg.append(f"❌ 讀取失敗 {file}: {e}")
         
-        return text_content, file_count
+        return text_content, file_count, debug_msg
     except Exception as e:
-        return "", 0
+        return "", 0, [f"❌ 系統錯誤: {e}"]
 
-# 程式啟動時自動載入一次 (若尚未載入)
-if st.session_state.knowledge_files_count == 0:
-    kb_text, kb_count = load_local_knowledge_base()
-    if kb_count > 0:
-        st.session_state.knowledge_base_text = kb_text
-        st.session_state.knowledge_files_count = kb_count
+# 程式啟動時嘗試載入
+kb_text, kb_count, kb_debug = load_local_knowledge_base()
+if kb_count > 0:
+    st.session_state.knowledge_base_text = kb_text
+    st.session_state.knowledge_files_count = kb_count
 
 # --- 核心：過濾模型邏輯 ---
 def get_filtered_models(api_key):
@@ -336,12 +353,24 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # ★★★ 知識庫狀態顯示 (取代上傳按鈕) ★★★
+    # ★★★ 知識庫診斷區 (重點功能) ★★★
+    st.markdown("### 📚 知識庫狀態")
     if st.session_state.knowledge_files_count > 0:
-        st.success(f"📚 知識庫：已掛載 {st.session_state.knowledge_files_count} 份手冊")
+        st.success(f"✅ 已掛載 {st.session_state.knowledge_files_count} 份手冊")
     else:
-        st.info("ℹ️ 知識庫：未偵測到 PDF 文件 (請將手冊上傳至後台)")
+        st.error("❌ 未掛載任何文件")
+    
+    with st.expander("🔍 系統檔案診斷 (點擊查看)"):
+        st.write("系統掃描日誌：")
+        for msg in kb_debug:
+            st.write(msg)
+        
+        if st.button("🔄 強制重新載入檔案"):
+            st.session_state.knowledge_files_count = 0
+            st.session_state.knowledge_base_text = ""
+            st.rerun()
 
+    st.markdown("---")
     st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -612,7 +641,7 @@ if st.session_state.current_strategy:
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
                     【📚 企業知識庫參考資料】
-                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容回答問題，若無相關資訊則說明「手冊中未提及」)
+                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
                     {st.session_state.knowledge_base_text[:30000]} ...
                     """
                 
