@@ -7,10 +7,17 @@ import pandas as pd
 import re
 import time
 import os
-import pdfplumber # 改用這個更強大的庫
 
-# --- 頁面設定 ---
+# --- 頁面設定 (必須放在第一行) ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
+
+# --- 🛡️ 安全引入 pdfplumber (防崩潰機制) ---
+pdf_lib_available = False
+try:
+    import pdfplumber
+    pdf_lib_available = True
+except ImportError:
+    pdf_lib_available = False
 
 # --- 🎨 風格設定 (深藍專業版 + 視覺暴力修正) ---
 st.markdown("""
@@ -219,15 +226,18 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 自動讀取後台 PDF 函數 (使用 pdfplumber) ★★★ ---
+# --- ★★★ 自動讀取後台 PDF 函數 (安全版) ★★★ ---
 def load_local_knowledge_base():
-    """自動掃描當前目錄下的 PDF 檔案並載入，使用 pdfplumber 避免解碼錯誤"""
+    """自動掃描當前目錄下的 PDF 檔案並載入"""
     text_content = ""
     file_count = 0
     debug_msg = []
     
+    # 檢查套件是否安裝
+    if not pdf_lib_available:
+        return "", 0, ["❌ Critical: 'pdfplumber' 套件未安裝！請更新 requirements.txt"]
+
     try:
-        # 取得當前目錄下所有檔案
         current_files = os.listdir('.')
         pdf_files = [f for f in current_files if f.lower().endswith('.pdf')]
         
@@ -239,7 +249,7 @@ def load_local_knowledge_base():
 
         for file in pdf_files:
             try:
-                # 使用 pdfplumber 開啟
+                # 使用 pdfplumber
                 with pdfplumber.open(file) as pdf:
                     file_text = ""
                     for page in pdf.pages:
@@ -348,14 +358,24 @@ with st.sidebar:
     
     # ★★★ 知識庫診斷區 ★★★
     st.markdown("### 📚 知識庫狀態")
-    if st.session_state.knowledge_files_count > 0:
+    
+    # 檢查套件狀態
+    if not pdf_lib_available:
+        st.error("🚨 系統錯誤：缺少 pdfplumber")
+        st.caption("請在 GitHub 的 requirements.txt 新增一行 `pdfplumber` 並重啟 App。")
+    elif st.session_state.knowledge_files_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.knowledge_files_count} 份手冊")
     else:
-        st.error("❌ 未掛載任何文件")
+        st.info("ℹ️ 未偵測到 PDF 文件")
     
     with st.expander("🔍 系統檔案診斷"):
         for msg in kb_debug:
-            st.write(msg)
+            if "❌" in msg:
+                st.error(msg)
+            elif "✅" in msg:
+                st.success(msg)
+            else:
+                st.write(msg)
         if st.button("🔄 強制重新載入"):
             st.session_state.knowledge_files_count = 0
             st.session_state.knowledge_base_text = ""
