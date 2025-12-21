@@ -113,28 +113,35 @@ if "kb_text" not in st.session_state: st.session_state.kb_text = ""
 if "kb_count" not in st.session_state: st.session_state.kb_count = 0
 if "kb_debug" not in st.session_state: st.session_state.kb_debug = []
 
-# --- 6. 核心：知識庫讀取 (TXT / Excel / PDF) ---
+# --- 6. 核心：知識庫讀取 (強力掃描版) ---
 def load_kb():
     full_text = ""
     count = 0
     debug_log = []
     
-    # 1. 讀取 Excel (最優先，因為是結構化數據)
-    xlsx_files = [f for f in os.listdir('.') if f.lower().endswith('.xlsx')]
+    # 列出所有檔案供偵錯
+    all_files = os.listdir('.')
+    debug_log.append(f"📂 系統目錄下所有檔案: {all_files}")
+
+    # 1. 讀取 Excel (最優先)
+    xlsx_files = [f for f in all_files if f.lower().endswith('.xlsx')]
+    if not xlsx_files:
+        debug_log.append("⚠️ 警告：未發現任何 .xlsx 檔案，請確認已上傳至 GitHub")
+    
     for f in xlsx_files:
         try:
-            # 讀取 Excel 並轉為文字表格
-            df = pd.read_excel(f)
-            # 將 DataFrame 轉為 CSV 格式字串，讓 AI 容易讀取
+            # 強制轉字串讀取
+            df = pd.read_excel(f, engine='openpyxl')
+            # 轉成 CSV 格式讓 AI 讀
             csv_text = df.to_csv(index=False)
-            full_text += f"\n=== Excel資料庫: {f} ===\n{csv_text}\n"
+            full_text += f"\n=== Excel資料庫 ({f}) ===\n{csv_text}\n"
             count += 1
-            debug_log.append(f"✅ Excel 載入: {f} (含 {len(df)} 筆商品資料)")
+            debug_log.append(f"✅ Excel 載入成功: {f}")
         except Exception as e:
-            debug_log.append(f"❌ Excel 失敗 {f}: {e}")
+            debug_log.append(f"❌ Excel 讀取失敗 {f}: {e}")
 
     # 2. 讀取 TXT
-    txt_files = [f for f in os.listdir('.') if f.lower().endswith('.txt')]
+    txt_files = [f for f in all_files if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
         try:
@@ -147,7 +154,7 @@ def load_kb():
 
     # 3. 讀取 PDF
     if pdf_tool_ready:
-        pdf_files = [f for f in os.listdir('.') if f.lower().endswith('.pdf')]
+        pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
         for f in pdf_files:
             try:
                 with pdfplumber.open(f) as pdf:
@@ -176,7 +183,7 @@ def calculate_life_path_number(birth_text):
     return total
 
 def generate_with_retry(model, prompt):
-    # 解除安全限制，防止 NoneType 錯誤
+    # 安全設定全開
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -234,14 +241,14 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 知識庫診斷
+    # 知識庫診斷 (這裡會顯示 Excel 是否被抓到)
     st.markdown("### 📚 知識庫 (Excel/TXT/PDF)")
     if st.session_state.kb_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 未偵測到文件")
     
-    with st.expander("🔍 檔案狀態"):
+    with st.expander("🔍 檔案狀態 (點我看清單)"):
         for m in st.session_state.kb_debug: st.write(m)
         if st.button("🔄 重新掃描"):
             st.session_state.kb_count = 0
@@ -262,11 +269,9 @@ with st.sidebar:
         genai.configure(api_key=api_key)
         try:
             all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            
-            # 篩選邏輯: 包含 flash 或 gemma
             target_keywords = ['flash', 'gemma']
             filtered_models = [m for m in all_models if any(k in m.lower() for k in target_keywords)]
-            filtered_models.sort(key=lambda x: "flash" not in x.lower()) # Flash 優先
+            filtered_models.sort(key=lambda x: "flash" not in x.lower())
             
             if not filtered_models: filtered_models = all_models
 
@@ -316,8 +321,8 @@ with st.form("client_form"):
         with g2:
             cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""))
             cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""))
-            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
-            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
+            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""))
+            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""))
         with g3:
             cov_ltc = st.text_input("長照月給付", value=data.get("cov_ltc", ""))
             cov_dis = st.text_input("失能月給付", value=data.get("cov_dis", ""))
@@ -327,7 +332,7 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄 (痛點)", value=data.get("quotes", ""), height=68)
-    with c9: target_product = st.text_area("🎯 銷售目標 (AI 將優先建議此項目)", value=data.get("target_product", ""), height=68)
+    with c9: target_product = st.text_area("🎯 銷售目標 (請輸入中文簡稱，如: 新樂活)", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
@@ -368,15 +373,19 @@ if save_btn or analyze_btn:
                 【保障盤點】日額:{cov_daily}, 實支:{cov_med_reim}, 手術:{cov_surg}, 意外:{cov_acc_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
                 """
                 
-                # ★★★ 戰略升級：加入 Excel 資料對照指令 ★★★
+                # ★★★ 核心 Prompt：強制對照中文名詞與代號 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」。
                 
-                【戰略最高指導原則】
-                請仔細查看【銷售目標】欄位："{target_product}"。
+                【任務一：銷售目標對應 (High Priority)】
+                請看【銷售目標】欄位："{target_product}"。
+                1. 請立刻搜尋下方的【Excel 資料庫】，尋找與 "{target_product}" 相符的商品名稱 (Fuzzy Match)。
+                2. **重要**：如果找到對應商品，請務必列出其 **[英文代號]** (例如：新樂活 -> GNHRL)。
+                3. 請直接引用 Excel 表格中的理賠項目與金額，作為推薦理由。
+                
+                【任務二：戰略建議】
                 1. **必須將「{target_product}」列為第一優先建議**。
-                2. 請搜尋下方的【Excel 資料庫】或【手冊內容】，若有符合該目標商品的資料（如商品名稱、代號、理賠金額），請直接引用數據。
-                3. 其他缺口（如壽險）請放在報告最後的「補充建議」。
+                2. 其他缺口（如壽險）請放在報告最後的「補充建議」，不要喧賓奪主。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
@@ -388,12 +397,12 @@ if save_btn or analyze_btn:
 
                 【輸出要求 (請使用白底深藍字風格 Markdown)】
                 1. **[客戶畫像與心理分析]**
-                2. **[戰略目標：攻下 {target_product}]** (引用 Excel 數據證明商品優勢)
+                2. **[戰略目標：攻下 {target_product} ({target_product}的英文代號)]** (引用 Excel 數據)
                 3. **[保障額度檢核表]**
                 4. **[補充建議：其他缺口]**
                 """
                 
-                with st.spinner("教練 Mars 正在查表分析..."):
+                with st.spinner("教練 Mars 正在查表對照..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -440,7 +449,7 @@ if st.session_state.current_strategy:
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：請針對「{target_product}」進行指導，並引用 Excel 數據回答。
+                任務：請針對「{target_product}」進行指導，並優先引用 Excel 英文代號與數據。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
