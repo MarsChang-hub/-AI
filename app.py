@@ -19,7 +19,7 @@ try:
 except ImportError:
     pdf_tool_ready = False
 
-# --- 3. 🎨 風格設定 (Mars 完整視覺回歸) ---
+# --- 3. 🎨 風格設定 ---
 st.markdown("""
 <style>
     :root {
@@ -190,7 +190,7 @@ def generate_with_retry(model, prompt):
             if "429" in str(e): time.sleep(5)
             else: raise e
 
-# --- 8. 側邊欄 ---
+# --- 8. 側邊欄 (隱藏設定區) ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
     ukey_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, type="password")
@@ -232,7 +232,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 知識庫診斷
+    # 知識庫狀態
     st.markdown("### 📚 知識庫狀態")
     if st.session_state.kb_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.kb_count} 份文件")
@@ -245,31 +245,24 @@ with st.sidebar:
             st.session_state.kb_count = 0
             st.rerun()
 
-    st.markdown("---")
-    st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
-    
-    # ★★★ 自動 API Key 邏輯 ★★★
-    api_key = ""
+    # --- ★★★ 自動後台連線 (隱藏 UI) ★★★ ---
+    model = None
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
-        st.success("🔑 已自動載入 API Key")
-    else:
-        api_key = st.text_input("請輸入 Google API Key", type="password")
-
-    model = None
-    if api_key:
         genai.configure(api_key=api_key)
         try:
-            m_list = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            m_list.sort(key=lambda x: "1.5-flash" not in x) # Flash 優先
-            sel_m = st.selectbox("🤖 模型選擇", m_list, index=0)
-            model = genai.GenerativeModel(sel_m)
-            
-            if "gemma" in sel_m.lower():
-                st.warning("⚠️ Gemma 額度小，若文件過長可能報錯。")
-            else:
-                st.caption(f"目前使用: {sel_m}")
-        except: st.error("API Key 驗證失敗")
+            # 預設使用 gemini-1.5-flash
+            model = genai.GenerativeModel('gemini-1.5-flash')
+        except:
+            st.error("後台 API Key 驗證失敗")
+    else:
+        # 只有在沒設定 Secrets 時才顯示輸入框
+        st.markdown("---")
+        st.error("⚠️ 未設定 Secrets，請手動輸入")
+        manual_key = st.text_input("Google API Key", type="password")
+        if manual_key:
+            genai.configure(api_key=manual_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 9. 主畫面表單 ---
 col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
@@ -297,7 +290,7 @@ with st.form("client_form"):
     with c6: job = st.text_input("職業 / 職位", value=data.get("job", ""))
     with c7: interests = st.text_input("興趣 / 休閒", value=data.get("interests", ""))
 
-    # ★★★ 既有保障收合區塊 ★★★
+    # 既有保障收合
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
     with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
         g1, g2, g3 = st.columns(3)
@@ -324,7 +317,6 @@ with st.form("client_form"):
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
-    # ★★★ 雙按鈕設計 ★★★
     with b1: save_btn = st.form_submit_button("💾 僅儲存資料")
     with b3: analyze_btn = st.form_submit_button("🚀 儲存並啟動教練分析")
 
@@ -354,9 +346,8 @@ if save_btn or analyze_btn:
             if not model: st.error("⚠️ 請確認 API Key 連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
-                # 額度保護邏輯
-                is_flash = "flash" in model.model_name.lower() or "1.5" in model.model_name.lower()
-                limit = 35000 if is_flash else 5000
+                # 額度保護邏輯：預設為 Flash 大額度
+                limit = 35000 
                 kb_context = st.session_state.kb_text[:limit]
                 
                 detailed_coverage = f"""
@@ -427,9 +418,7 @@ if st.session_state.current_strategy:
         if not model: st.error("請確認連線")
         else:
             with st.spinner("教練思考中..."):
-                # 額度保護
-                is_flash = "flash" in model.model_name.lower() or "1.5" in model.model_name.lower()
-                limit = 35000 if is_flash else 5000
+                limit = 35000
                 kb_context = st.session_state.kb_text[:limit]
                 
                 chat_prompt = f"""
