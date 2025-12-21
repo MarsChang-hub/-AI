@@ -209,7 +209,7 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1) + 10
+                wait_time = base_delay * (attempt + 1) + 10 # 增加等待時間
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -218,30 +218,38 @@ def generate_content_with_retry(model_instance, prompt):
             else:
                 raise e 
 
-# --- ★★★ 核心：動態精準抓取 1.5 Flash (解決 404 問題) ★★★ ---
+# --- ★★★ 核心：嚴格鎖定 1.5 Flash (白名單機制) ★★★ ---
 def get_safe_flash_model(api_key):
     genai.configure(api_key=api_key)
     try:
         # 1. 取得所有可用模型清單
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        # 2. 尋找同時包含 '1.5' 和 'flash' 的模型名稱
-        # 例如: 'models/gemini-1.5-flash-001'
-        flash_1_5 = next((m for m in all_models if '1.5' in m and 'flash' in m), None)
+        # 2. 定義「安全白名單」 (順序代表優先權)
+        # 我們只找這些名字，絕對不找 "flash" 萬用字元，因為那會抓到 2.5
+        safe_list = [
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-001",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro", # 如果沒有 flash 1.5，用 pro 1.5 也比 2.5 安全
+            "gemini-pro"      # 最後防線
+        ]
         
-        if flash_1_5:
-            # 找到就用這個精準名稱
-            return genai.GenerativeModel(flash_1_5)
+        selected_model_name = None
+        for safe_name in safe_list:
+            # 檢查 API 清單裡有沒有包含這個安全名字的 (例如 models/gemini-1.5-flash)
+            found = next((m for m in all_models if safe_name in m), None)
+            if found:
+                selected_model_name = found
+                break
+        
+        if selected_model_name:
+            return genai.GenerativeModel(selected_model_name)
         else:
-            # 沒找到 1.5 flash，退而求其次找任何 flash
-            any_flash = next((m for m in all_models if 'flash' in m), None)
-            if any_flash:
-                return genai.GenerativeModel(any_flash)
-            else:
-                # 真的都沒有，用 Pro
-                return genai.GenerativeModel('gemini-pro')
+            # 如果連白名單都找不到，回傳預設字串 (死馬當活馬醫)
+            return genai.GenerativeModel('gemini-1.5-flash')
+            
     except:
-        # 連連線都失敗，使用預設字串 (賭一把)
         return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
@@ -305,7 +313,7 @@ else:
 
 model = None
 if api_key:
-    # ★★★ 使用動態精準抓取函數 ★★★
+    # ★★★ 使用嚴格白名單抓取 ★★★
     model = get_safe_flash_model(api_key)
 
 # --- 表單 ---
@@ -475,6 +483,7 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
+                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -534,6 +543,7 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
+                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
