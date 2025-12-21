@@ -185,8 +185,6 @@ if "current_strategy" not in st.session_state:
     st.session_state.current_strategy = None
 if "user_key" not in st.session_state:
     st.session_state.user_key = ""
-if "active_model_name" not in st.session_state:
-    st.session_state.active_model_name = "尚未連線"
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -198,54 +196,21 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 核心：候選模型切換邏輯 (解決 404/429) ★★★ ---
-def get_best_available_model(api_key):
+# --- ★★★ 核心：獲取所有可用模型 (供選單使用) ★★★ ---
+def get_all_available_models(api_key):
     genai.configure(api_key=api_key)
-    
-    # 優先順序清單：從最省錢/最穩定開始嘗試
-    candidate_models = [
-        "gemini-1.5-flash", 
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash-8b", # 另一種輕量版
-        "gemini-pro"           # 最後防線 (1.0 Pro)
-    ]
-    
-    # 1. 先取得使用者帳號能用的所有模型 (避免瞎猜 404)
     try:
-        available_models_objects = list(genai.list_models())
-        available_names = [m.name for m in available_models_objects if 'generateContent' in m.supported_generation_methods]
+        models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models.append(m.name)
+        return models
     except:
-        # 如果連清單都抓不到，直接回傳預設字串賭賭看
-        return genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash (Default)"
-
-    # 2. 逐一比對候選名單與可用名單
-    for candidate in candidate_models:
-        # 檢查 available_names 裡是否有包含 candidate 的項目
-        # 例如 candidate="gemini-1.5-flash", available 可能有 "models/gemini-1.5-flash-001"
-        match = next((m for m in available_names if candidate in m), None)
-        
-        if match:
-            # 找到匹配！回傳這個模型物件
-            st.session_state.active_model_name = match # 存起來顯示用
-            return genai.GenerativeModel(match), match
-
-    # 3. 如果都沒匹配到，回傳第一個可用的 Flash 模型
-    fallback_flash = next((m for m in available_names if 'flash' in m), None)
-    if fallback_flash:
-        st.session_state.active_model_name = fallback_flash
-        return genai.GenerativeModel(fallback_flash), fallback_flash
-        
-    # 4. 真的絕望了，回傳第一個可用的模型
-    if available_names:
-        st.session_state.active_model_name = available_names[0]
-        return genai.GenerativeModel(available_names[0]), available_names[0]
-        
-    return genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash (Force)"
+        return []
 
 # --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
-    max_retries = 5
+    max_retries = 3
     base_delay = 5 
     
     for attempt in range(max_retries):
@@ -256,17 +221,47 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1) + 10
+                wait_time = base_delay * (attempt + 1) + 5
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
-                    placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
+                    placeholder.warning(f"⚠️ API 額度冷卻中... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
                     time.sleep(1)
                 placeholder.empty()
             else:
                 raise e 
 
-# --- 側邊欄 ---
+# --- 側邊欄：設定與名單 ---
 with st.sidebar:
+    st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
+    
+    # 1. 輸入 API Key
+    if "GOOGLE_API_KEY" in st.secrets:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+    else:
+        api_key = st.text_input("請輸入 Google API Key", type="password")
+
+    model = None
+    if api_key:
+        # 2. ★★★ 模型選擇器 (Model Selector) ★★★
+        try:
+            available_models = get_all_available_models(api_key)
+            if available_models:
+                # 嘗試自動選定最穩定的 1.5 Flash
+                default_index = 0
+                for i, m in enumerate(available_models):
+                    if "gemini-1.5-flash" in m and "8b" not in m and "latest" not in m: # 找最標準的 flash
+                        default_index = i
+                        break
+                
+                selected_model_name = st.selectbox("🤖 選擇 AI 模型", available_models, index=default_index, help="若遇到 429 錯誤，請嘗試切換不同模型")
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(selected_model_name)
+            else:
+                st.error("無法取得模型清單，請檢查 API Key")
+        except Exception as e:
+            st.error(f"連線錯誤: {e}")
+
+    st.markdown("---")
     st.markdown("### 🗂️ 客戶名單管理")
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
     
@@ -317,20 +312,6 @@ col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
 with col_t2:
     st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>CRM 雲端版．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
-
-# --- API Key 設定 ---
-if "GOOGLE_API_KEY" in st.secrets:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-else:
-    api_key = st.text_input("請輸入 Google API Key", type="password")
-
-# --- 初始化 Model (使用候選切換邏輯) ---
-model = None
-if api_key:
-    model, model_name = get_best_available_model(api_key)
-    # 在側邊欄顯示目前連線模型 (方便除錯)
-    st.sidebar.markdown("---")
-    st.sidebar.caption(f"🟢 目前連線模型：{model_name}")
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -421,7 +402,7 @@ if save_btn or analyze_btn:
         
         if analyze_btn:
             if not model:
-                st.error("⚠️ 系統連線異常，請檢查 API Key")
+                st.error("⚠️ 請在側邊欄選擇有效的模型")
             else:
                 life_path_num = calculate_life_path_number(birthday)
                 
@@ -499,7 +480,6 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -507,7 +487,7 @@ if save_btn or analyze_btn:
                         save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"分析失敗 (已達最大重試次數): {e}")
+                        st.error(f"分析失敗: {e}")
 
 # --- 顯示結果 ---
 if st.session_state.current_strategy:
@@ -549,7 +529,7 @@ if st.session_state.current_strategy:
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         
         if not model:
-            st.error("請先輸入 API Key")
+            st.error("請在側邊欄確認模型狀態")
         else:
             with st.spinner("教練思考中..."):
                 chat_prompt = f"""
@@ -559,7 +539,6 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
@@ -570,4 +549,4 @@ if st.session_state.current_strategy:
                     
                     st.rerun()
                 except Exception as e:
-                    st.error(f"回覆失敗 (已達最大重試次數): {e}")
+                    st.error(f"回覆失敗: {e}")
