@@ -270,21 +270,30 @@ if kb_count > 0:
     st.session_state.knowledge_base_text = kb_text
     st.session_state.knowledge_files_count = kb_count
 
-# --- 核心：過濾模型邏輯 ---
+# --- ★★★ 核心：過濾模型邏輯 (強制修正為 Flash 優先) ★★★ ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
+        
+        # 這裡將 gemini-1.5-flash 移到最前面，作為預設值
+        priority_keywords = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b']
+        
         filtered_list = []
         for key in priority_keywords:
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
+            
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
+            
         filtered_list = list(set(filtered_list))
-        filtered_list.sort()
-        return filtered_list
+        
+        # 強制讓 flash 1.5 排第一位 (為了防爆)
+        flash_models = [m for m in filtered_list if '1.5-flash' in m]
+        other_models = [m for m in filtered_list if '1.5-flash' not in m]
+        
+        return flash_models + other_models
     except:
         return []
 
@@ -383,14 +392,18 @@ with st.sidebar:
             available_models = get_filtered_models(api_key)
             if available_models:
                 selected_model_name = st.selectbox(
-                    "🤖 選擇 AI 模型 (若額度不足請切換)", 
+                    "🤖 選擇 AI 模型 (Flash 最穩)", 
                     available_models, 
-                    index=0
+                    index=0 # 預設選第一個 (Flash)
                 )
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(selected_model_name)
                 st.success(f"🟢 系統狀態：已連線")
                 st.caption(f"使用中: {selected_model_name}")
+                
+                # 額度警告
+                if "gemma" in selected_model_name.lower():
+                    st.warning("⚠️ Gemma 額度極低，請勿用於讀取手冊！")
             else:
                 st.warning("⚠️ 無法取得模型清單，使用預設值")
                 model = genai.GenerativeModel('gemini-1.5-flash')
