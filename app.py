@@ -6,11 +6,12 @@ import json
 import pandas as pd
 import re
 import time
+from PyPDF2 import PdfReader # 需要安裝: pip install PyPDF2
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 藍色文字優化) ---
+# --- 🎨 風格設定 (深藍專業版 + 視覺暴力修正) ---
 st.markdown("""
 <style>
     :root {
@@ -64,9 +65,9 @@ st.markdown("""
         border: none;
     }
 
-    /* --- ★★★ 報告框 (Report Box) 藍色文字修正 ★★★ --- */
+    /* 報告框優化 (強制黑字) */
     .report-box {
-        background-color: #ffffff !important; /* 絕對白底 */
+        background-color: #ffffff !important;
         padding: 40px;
         border-radius: 8px;
         border-top: 8px solid var(--text-orange);
@@ -74,62 +75,26 @@ st.markdown("""
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
-    
-    /* 強制指定報告框內所有文字為「深海藍」 */
-    .report-box p, 
-    .report-box span, 
-    .report-box li, 
-    .report-box div, 
-    .report-box b,
-    .report-box em,
-    .report-box h4, 
-    .report-box h5, 
-    .report-box h6 {
-        color: #003366 !important; /* ★★★ 這裡改成深藍色 ★★★ */
-    }
-
-    /* 標題與重點 */
+    .report-box * { color: #000000 !important; }
     .report-box h1, .report-box h2 {
-        color: #002244 !important; /* 標題用更深的午夜藍 */
+        color: #001a33 !important;
         border-bottom: 2px solid #ff9933;
         padding-bottom: 10px;
         margin-top: 30px;
         font-weight: 800;
     }
-    .report-box h3 { 
-        color: #cc4400 !important; /* 副標維持橘色 */
-        font-weight: 700; 
-        margin-top: 20px;
-    }
+    .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
+    .report-box strong { background-color: #fff5e6 !important; padding: 0 4px; }
     
-    /* 粗體字螢光筆效果 */
-    .report-box strong { 
-        color: #002244 !important; /* 粗體深藍 */
-        background-color: #fff5e6 !important; 
-        padding: 0 4px; 
-    }
-
     /* 表格設計 */
-    .report-box table {
-        width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px;
-        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .report-box th {
-        background-color: #003366 !important; /* 表頭改為深藍底 */
-        color: #ffffff !important; /* 表頭維持白字 */
-        padding: 15px; text-align: left;
-    }
+    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .report-box th { background-color: #001a33 !important; color: #ffffff !important; padding: 15px; text-align: left; }
     .report-box th * { color: #ffffff !important; }
-    
-    .report-box td {
-        padding: 12px 15px; border-bottom: 1px solid #eeeeee; 
-        color: #003366 !important; /* 表格內容深藍字 */
-    }
-    .report-box tr:nth-child(even) { background-color: #f0f8ff; } /* 偶數行淺藍底 */
+    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #000000 !important; }
+    .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 修正 ★★★ --- */
-    
+    /* 教練陪練室獨立對話框 (強制白字) */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -138,25 +103,14 @@ st.markdown("""
         font-weight: bold;
         margin-top: 10px;
     }
-    
-    /* 內容區塊：強制深色背景 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important; 
+        background-color: #0d1b2a !important;
         padding: 15px;
     }
-    
-    /* 強制指定對話框內文字為「極亮藍白」 */
-    .streamlit-expanderContent p, 
-    .streamlit-expanderContent span, 
-    .streamlit-expanderContent li, 
-    .streamlit-expanderContent div,
-    .streamlit-expanderContent strong,
-    .streamlit-expanderContent code {
-        color: #e6f7ff !important; /* ★★★ 這裡改成亮藍白色 ★★★ */
-    }
+    .streamlit-expanderContent * { color: #ffffff !important; }
     
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -230,6 +184,9 @@ if "user_key" not in st.session_state:
     st.session_state.user_key = ""
 if "active_model_name" not in st.session_state:
     st.session_state.active_model_name = "尚未連線"
+# ★★★ 新增：知識庫文字內容 ★★★
+if "knowledge_base_text" not in st.session_state:
+    st.session_state.knowledge_base_text = ""
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -241,23 +198,28 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- 核心：過濾模型邏輯 (保留 Gemma 優先權) ---
+def extract_text_from_pdf(uploaded_file):
+    try:
+        reader = PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        return f"Error reading PDF: {e}"
+
+# --- 核心：過濾模型邏輯 ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 使用者指定的優先關鍵字
         priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
-        
         filtered_list = []
         for key in priority_keywords:
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
-            
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
-            
         filtered_list = list(set(filtered_list))
         filtered_list.sort()
         return filtered_list
@@ -326,6 +288,18 @@ with st.sidebar:
                                 st.rerun()
     else:
         st.warning("請輸入金鑰以存取名單")
+
+    # --- ★★★ 知識庫上傳區 ★★★ ---
+    st.markdown("---")
+    st.markdown("### 📚 企業知識庫 (RAG)")
+    uploaded_files = st.file_uploader("上傳商品/業務手冊 (PDF)", type=["pdf"], accept_multiple_files=True)
+    if uploaded_files:
+        raw_text = ""
+        for pdf in uploaded_files:
+            raw_text += extract_text_from_pdf(pdf)
+        st.session_state.knowledge_base_text = raw_text
+        st.success(f"✅ 已載入 {len(uploaded_files)} 份手冊資料！")
+        st.caption("AI 現在可以參考這些文件回答問題。")
 
     st.markdown("---")
     st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
@@ -506,11 +480,22 @@ if save_btn or analyze_btn:
                     output_requirements += """
                 6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
                     """
+                
+                # ★★★ 將知識庫內容注入 Prompt ★★★
+                knowledge_context = ""
+                if st.session_state.knowledge_base_text:
+                    knowledge_context = f"""
+                    【📚 企業知識庫參考資料】
+                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
+                    {st.session_state.knowledge_base_text[:20000]} ... (內容過長省略)
+                    """
 
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
                 請使用豐富的 Markdown 語法讓報告美觀易讀（使用粗體、條列、表格）。
                 
+                {knowledge_context}
+
                 【戰略位置】{s_stage}
                 【客戶】{client_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
                 【語錄】"{quotes}"
@@ -580,8 +565,18 @@ if st.session_state.current_strategy:
             st.error("請在側邊欄確認模型狀態")
         else:
             with st.spinner("教練思考中..."):
+                # ★★★ 將知識庫內容注入 Prompt (陪練室) ★★★
+                knowledge_context = ""
+                if st.session_state.knowledge_base_text:
+                    knowledge_context = f"""
+                    【📚 企業知識庫參考資料】
+                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
+                    {st.session_state.knowledge_base_text[:20000]} ...
+                    """
+                
                 chat_prompt = f"""
                 你是 Coach Mars Chang。
+                {knowledge_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
                 任務：人性化指導。
