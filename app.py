@@ -8,23 +8,18 @@ import re
 import time
 import os
 
-# --- 1. 頁面設定 (必須放第一行) ---
+# --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 2. 智慧引入 PDF 套件 (防崩潰機制) ---
-# 嘗試引入 pdfplumber (首選)，失敗則嘗試 PyPDF2 (備選)，都失敗則標記不可用
-pdf_engine = None
+# --- 🛡️ 安全氣囊：檢查 pdfplumber 是否安裝 ---
 try:
     import pdfplumber
-    pdf_engine = "pdfplumber"
+    pdf_lib_available = True
 except ImportError:
-    try:
-        from PyPDF2 import PdfReader
-        pdf_engine = "pypdf2"
-    except ImportError:
-        pdf_engine = None
+    pdf_lib_available = False
+    st.error("⚠️ 系統偵測到缺少 `pdfplumber` 套件。請確認 requirements.txt 已更新並重啟 App。目前僅能使用基礎 AI 功能。")
 
-# --- 🎨 風格設定 (深藍專業版 + 高對比修正) ---
+# --- 🎨 風格設定 (深藍專業版 + 視覺優化) ---
 st.markdown("""
 <style>
     :root {
@@ -78,7 +73,7 @@ st.markdown("""
         border: none;
     }
 
-    /* 報告框優化 */
+    /* 報告框 (Report Box) */
     .report-box {
         background-color: #ffffff !important;
         padding: 40px;
@@ -88,26 +83,24 @@ st.markdown("""
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
-    .report-box * { color: #003366 !important; } /* 深藍文字 */
+    .report-box * { color: #003366 !important; } /* 深藍字 */
     .report-box h1, .report-box h2 {
         color: #002244 !important;
         border-bottom: 2px solid #ff9933;
-        padding-bottom: 10px;
-        margin-top: 30px;
-        font-weight: 800;
+        padding-bottom: 10px; margin-top: 30px; font-weight: 800;
     }
     .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
-    .report-box strong { background-color: #fff5e6 !important; padding: 0 4px; }
+    .report-box strong { color: #002244 !important; background-color: #fff5e6 !important; padding: 0 4px; }
     
     /* 表格設計 */
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .report-box th { background-color: #003366 !important; color: #ffffff !important; padding: 15px; text-align: left; }
     .report-box th * { color: #ffffff !important; }
     .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #003366 !important; }
-    .report-box tr:nth-child(even) { background-color: #f0f8ff; }
+    .report-box tr:nth-child(even) { background-color: #f0f8ff; } 
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* 教練陪練室獨立對話框 */
+    /* 教練陪練室獨立對話框 (Expander) */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -120,7 +113,7 @@ st.markdown("""
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important;
+        background-color: #0d1b2a !important; 
         padding: 15px;
     }
     .streamlit-expanderContent * { color: #e6f7ff !important; }
@@ -200,8 +193,6 @@ if "active_model_name" not in st.session_state:
 # 知識庫
 if "knowledge_base_text" not in st.session_state:
     st.session_state.knowledge_base_text = ""
-if "knowledge_files_count" not in st.session_state:
-    st.session_state.knowledge_files_count = 0
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -213,58 +204,33 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 自動讀取後台 PDF 函數 (雙引擎安全版) ★★★ ---
-def load_local_knowledge_base():
-    """自動掃描當前目錄下的 PDF 檔案並載入"""
-    text_content = ""
-    file_count = 0
-    debug_msg = []
+# --- ★★★ 自動讀取商品手冊 (只讀取 AG商品手冊) ★★★ ---
+def load_specific_manual():
+    """只讀取 AG商品手冊_11411-.pdf，忽略其他"""
+    target_file = "AG商品手冊_11411-.pdf"
     
-    if not pdf_engine:
-        return "", 0, ["❌ 警告：未偵測到 PDF 讀取套件 (pdfplumber 或 PyPDF2)，無法讀取手冊。"]
-
+    if not pdf_lib_available:
+        return "" # 套件沒裝，直接跳過，不報錯
+    
+    if not os.path.exists(target_file):
+        return "" # 檔案不在，直接跳過
+        
     try:
-        current_files = os.listdir('.')
-        # 優先篩選您的商品手冊
-        pdf_files = [f for f in current_files if f.lower().endswith('.pdf')]
-        
-        debug_msg.append(f"📂 掃描路徑: {os.getcwd()}")
-        
-        if not pdf_files:
-            debug_msg.append("⚠️ 未發現任何 .pdf 檔案")
-            return "", 0, debug_msg
+        with pdfplumber.open(target_file) as pdf:
+            file_text = ""
+            for page in pdf.pages:
+                extracted = page.extract_text()
+                if extracted:
+                    file_text += extracted + "\n"
+            return f"\n--- 依據商品手冊 ({target_file}) ---\n{file_text}\n"
+    except Exception:
+        return "" # 讀取失敗，直接跳過
 
-        for file in pdf_files:
-            try:
-                file_text = ""
-                # 引擎 1: pdfplumber (首選)
-                if pdf_engine == "pdfplumber":
-                    with pdfplumber.open(file) as pdf:
-                        for page in pdf.pages:
-                            extracted = page.extract_text()
-                            if extracted: file_text += extracted + "\n"
-                
-                # 引擎 2: PyPDF2 (備選)
-                elif pdf_engine == "pypdf2":
-                    reader = PdfReader(file)
-                    for page in reader.pages:
-                        file_text += page.extract_text() + "\n"
-
-                text_content += f"\n--- 手冊內容開始: {file} ---\n{file_text}\n--- 手冊內容結束 ---\n"
-                file_count += 1
-                debug_msg.append(f"✅ 成功讀取: {file}")
-            except Exception as e:
-                debug_msg.append(f"❌ 讀取失敗 {file}: {e}")
-        
-        return text_content, file_count, debug_msg
-    except Exception as e:
-        return "", 0, [f"❌ 系統錯誤: {e}"]
-
-# 程式啟動時嘗試載入
-kb_text, kb_count, kb_debug = load_local_knowledge_base()
-if kb_count > 0:
-    st.session_state.knowledge_base_text = kb_text
-    st.session_state.knowledge_files_count = kb_count
+# 啟動時載入一次
+if not st.session_state.knowledge_base_text:
+    manual_text = load_specific_manual()
+    if manual_text:
+        st.session_state.knowledge_base_text = manual_text
 
 # --- 核心：過濾模型邏輯 ---
 def get_filtered_models(api_key):
@@ -347,20 +313,13 @@ with st.sidebar:
     else:
         st.warning("請輸入金鑰以存取名單")
 
+    # 知識庫狀態顯示
     st.markdown("---")
-    
-    # ★★★ 知識庫狀態 (只顯示狀態，不顯示上傳) ★★★
-    st.markdown("### 📚 知識庫狀態")
-    if st.session_state.knowledge_files_count > 0:
-        st.success(f"✅ 已掛載 {st.session_state.knowledge_files_count} 份手冊")
+    if st.session_state.knowledge_base_text:
+        st.success("📚 AG商品手冊：已掛載")
     else:
-        st.info("ℹ️ 未偵測到 PDF 文件 (請確認檔案已上傳至 GitHub)")
-        # 顯示除錯訊息，幫助您確認狀況
-        with st.expander("🔍 除錯資訊"):
-            for msg in kb_debug:
-                st.write(msg)
-            if st.button("🔄 重試載入"):
-                st.rerun()
+        # 這裡不顯示錯誤，保持乾淨，除非真的有需要
+        st.caption("ℹ️ 商品手冊未載入")
 
     st.markdown("---")
     st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
@@ -534,8 +493,8 @@ if save_btn or analyze_btn:
                     """
                 output_requirements += f"""
                 3. **[戰略目標 ({s_stage})]**
-                4. **[建議方向一]** (必須引用知識庫中的具體商品)
-                5. **[建議方向二]** (必須引用知識庫中的具體商品)
+                4. **[建議方向一]** (必須引用知識庫中的 AG 商品，提供具體名稱與代號)
+                5. **[建議方向二]** (必須引用知識庫中的 AG 商品，提供具體名稱與代號)
                 """
                 if show_gap_analysis:
                     output_requirements += """
@@ -546,13 +505,12 @@ if save_btn or analyze_btn:
                 knowledge_context = ""
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
-                    【📚 企業知識庫參考資料】
-                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容，提供具體的商品名稱與規則建議。
-                    如果手冊中有符合客戶需求的商品，請優先推薦。)
+                    【📚 企業知識庫參考資料 (AG商品手冊)】
+                    (嚴格要求：請務必根據以下手冊內容回答，必須推薦具體的商品名稱與代號，例如 '好喜悅定期壽險' 或 '新癌症五年定期' 等)
                     {st.session_state.knowledge_base_text[:30000]} ... (內容過長截斷)
                     """
                 else:
-                    knowledge_context = "(注意：目前尚未掛載知識庫，請使用一般保險知識回答)"
+                    knowledge_context = "(注意：目前尚未掛載商品手冊，只能使用一般保險知識回答)"
 
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
@@ -634,7 +592,7 @@ if st.session_state.current_strategy:
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
                     【📚 企業知識庫參考資料】
-                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容回答問題，若無相關資訊則說明「手冊中未提及」)
+                    (嚴格要求：請務必根據以下 AG 商品手冊內容回答問題，必須引用具體商品名稱與代號)
                     {st.session_state.knowledge_base_text[:30000]} ...
                     """
                 
@@ -643,7 +601,7 @@ if st.session_state.current_strategy:
                 {knowledge_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：人性化指導。
+                任務：人性化指導，必須推薦手冊中的具體商品。
                 """
                 try:
                     response = generate_content_with_retry(model, chat_prompt)
