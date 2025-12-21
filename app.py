@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 高質感報告 CSS + 陪練室優化) ---
+# --- 🎨 風格設定 (深藍專業版 + 高質感報告 + 陪練室優化) ---
 st.markdown("""
 <style>
     :root {
@@ -100,7 +100,7 @@ st.markdown("""
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 美化 ★★★ --- */
+    /* --- 教練陪練室獨立對話框 (Expander) --- */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -196,10 +196,10 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ API 自動重試函數 (延長等待時間) ★★★ ---
+# --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
-    base_delay = 20 # ★★★ 增加基礎等待時間到 20秒 (因為 Google 叫我們等 19.8s) ★★★
+    base_delay = 5 
     
     for attempt in range(max_retries):
         try:
@@ -209,7 +209,7 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1)
+                wait_time = base_delay * (attempt + 1) + 10
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -217,6 +217,32 @@ def generate_content_with_retry(model_instance, prompt):
                 placeholder.empty()
             else:
                 raise e 
+
+# --- ★★★ 核心：動態精準抓取 1.5 Flash (解決 404 問題) ★★★ ---
+def get_safe_flash_model(api_key):
+    genai.configure(api_key=api_key)
+    try:
+        # 1. 取得所有可用模型清單
+        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 2. 尋找同時包含 '1.5' 和 'flash' 的模型名稱
+        # 例如: 'models/gemini-1.5-flash-001'
+        flash_1_5 = next((m for m in all_models if '1.5' in m and 'flash' in m), None)
+        
+        if flash_1_5:
+            # 找到就用這個精準名稱
+            return genai.GenerativeModel(flash_1_5)
+        else:
+            # 沒找到 1.5 flash，退而求其次找任何 flash
+            any_flash = next((m for m in all_models if 'flash' in m), None)
+            if any_flash:
+                return genai.GenerativeModel(any_flash)
+            else:
+                # 真的都沒有，用 Pro
+                return genai.GenerativeModel('gemini-pro')
+    except:
+        # 連連線都失敗，使用預設字串 (賭一把)
+        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -277,12 +303,10 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
-# --- ★★★ 核心：強制鎖定使用 'gemini-1.5-flash' ★★★ ---
 model = None
 if api_key:
-    genai.configure(api_key=api_key)
-    # 直接指定，不進行任何搜尋，避免抓到 2.5
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # ★★★ 使用動態精準抓取函數 ★★★
+    model = get_safe_flash_model(api_key)
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -451,7 +475,6 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -511,7 +534,6 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
