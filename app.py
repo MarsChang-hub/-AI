@@ -185,6 +185,8 @@ if "current_strategy" not in st.session_state:
     st.session_state.current_strategy = None
 if "user_key" not in st.session_state:
     st.session_state.user_key = ""
+if "active_model_name" not in st.session_state:
+    st.session_state.active_model_name = "尚未連線"
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -196,9 +198,54 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
+# --- ★★★ 核心：候選模型切換邏輯 (解決 404/429) ★★★ ---
+def get_best_available_model(api_key):
+    genai.configure(api_key=api_key)
+    
+    # 優先順序清單：從最省錢/最穩定開始嘗試
+    candidate_models = [
+        "gemini-1.5-flash", 
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-8b", # 另一種輕量版
+        "gemini-pro"           # 最後防線 (1.0 Pro)
+    ]
+    
+    # 1. 先取得使用者帳號能用的所有模型 (避免瞎猜 404)
+    try:
+        available_models_objects = list(genai.list_models())
+        available_names = [m.name for m in available_models_objects if 'generateContent' in m.supported_generation_methods]
+    except:
+        # 如果連清單都抓不到，直接回傳預設字串賭賭看
+        return genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash (Default)"
+
+    # 2. 逐一比對候選名單與可用名單
+    for candidate in candidate_models:
+        # 檢查 available_names 裡是否有包含 candidate 的項目
+        # 例如 candidate="gemini-1.5-flash", available 可能有 "models/gemini-1.5-flash-001"
+        match = next((m for m in available_names if candidate in m), None)
+        
+        if match:
+            # 找到匹配！回傳這個模型物件
+            st.session_state.active_model_name = match # 存起來顯示用
+            return genai.GenerativeModel(match), match
+
+    # 3. 如果都沒匹配到，回傳第一個可用的 Flash 模型
+    fallback_flash = next((m for m in available_names if 'flash' in m), None)
+    if fallback_flash:
+        st.session_state.active_model_name = fallback_flash
+        return genai.GenerativeModel(fallback_flash), fallback_flash
+        
+    # 4. 真的絕望了，回傳第一個可用的模型
+    if available_names:
+        st.session_state.active_model_name = available_names[0]
+        return genai.GenerativeModel(available_names[0]), available_names[0]
+        
+    return genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash (Force)"
+
 # --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
-    max_retries = 3
+    max_retries = 5
     base_delay = 5 
     
     for attempt in range(max_retries):
@@ -209,7 +256,7 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1) + 5
+                wait_time = base_delay * (attempt + 1) + 10
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -217,34 +264,6 @@ def generate_content_with_retry(model_instance, prompt):
                 placeholder.empty()
             else:
                 raise e 
-
-# --- ★★★ 核心：自動偵測正確的 Flash 模型 (第一次修正時的參數邏輯) ★★★ ---
-def get_auto_detected_model(api_key):
-    genai.configure(api_key=api_key)
-    try:
-        # 1. 取得所有可用模型清單
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 2. 優先尋找 1.5 Flash (最穩定且額度高)
-        # 這是您第一次修正成功時的邏輯：去清單裡找名字有 'flash' 的
-        selected_model_name = next((m for m in available_models if '1.5' in m and 'flash' in m), None)
-        
-        if not selected_model_name:
-             # 如果沒有 1.5 flash，找任何 flash
-            selected_model_name = next((m for m in available_models if 'flash' in m), None)
-            
-        if not selected_model_name:
-            # 真的都沒有，找 Pro (排除 2.5)
-            selected_model_name = next((m for m in available_models if 'pro' in m), None)
-            
-        # 如果還是空的，就強制用字串 (極少發生，除非 API Key 權限全無)
-        if not selected_model_name:
-            selected_model_name = 'gemini-1.5-flash'
-            
-        return genai.GenerativeModel(selected_model_name)
-    except:
-        # 最後防線，直接回傳預設物件，避免 crash
-        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -305,10 +324,13 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
+# --- 初始化 Model (使用候選切換邏輯) ---
 model = None
 if api_key:
-    # ★★★ 使用回歸第一次成功的動態偵測函數 ★★★
-    model = get_auto_detected_model(api_key)
+    model, model_name = get_best_available_model(api_key)
+    # 在側邊欄顯示目前連線模型 (方便除錯)
+    st.sidebar.markdown("---")
+    st.sidebar.caption(f"🟢 目前連線模型：{model_name}")
 
 # --- 表單 ---
 data = st.session_state.current_client_data
