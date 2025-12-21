@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 高質感報告 + 陪練室優化) ---
+# --- 🎨 風格設定 (深藍專業版 + 陪練室獨立方塊 CSS) ---
 st.markdown("""
 <style>
     :root {
@@ -100,7 +100,7 @@ st.markdown("""
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- 教練陪練室獨立對話框 (Expander) --- */
+    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 美化 ★★★ --- */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -196,10 +196,10 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ API 自動重試函數 ★★★ ---
+# --- ★★★ 強力自動重試函數 (針對 429 錯誤) ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
-    max_retries = 3
-    base_delay = 5 
+    max_retries = 5 # 提高重試次數到 5 次
+    base_delay = 5  
     
     for attempt in range(max_retries):
         try:
@@ -208,8 +208,10 @@ def generate_content_with_retry(model_instance, prompt):
             error_str = str(e)
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
-                    raise e
-                wait_time = base_delay * (attempt + 1) + 10 # 增加等待時間
+                    raise e # 真的沒辦法了，拋出錯誤
+                
+                # 延長等待時間：5s -> 10s -> 15s -> 20s -> 25s
+                wait_time = base_delay * (attempt + 1)
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -217,40 +219,6 @@ def generate_content_with_retry(model_instance, prompt):
                 placeholder.empty()
             else:
                 raise e 
-
-# --- ★★★ 核心：嚴格鎖定 1.5 Flash (白名單機制) ★★★ ---
-def get_safe_flash_model(api_key):
-    genai.configure(api_key=api_key)
-    try:
-        # 1. 取得所有可用模型清單
-        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 2. 定義「安全白名單」 (順序代表優先權)
-        # 我們只找這些名字，絕對不找 "flash" 萬用字元，因為那會抓到 2.5
-        safe_list = [
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-001",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro", # 如果沒有 flash 1.5，用 pro 1.5 也比 2.5 安全
-            "gemini-pro"      # 最後防線
-        ]
-        
-        selected_model_name = None
-        for safe_name in safe_list:
-            # 檢查 API 清單裡有沒有包含這個安全名字的 (例如 models/gemini-1.5-flash)
-            found = next((m for m in all_models if safe_name in m), None)
-            if found:
-                selected_model_name = found
-                break
-        
-        if selected_model_name:
-            return genai.GenerativeModel(selected_model_name)
-        else:
-            # 如果連白名單都找不到，回傳預設字串 (死馬當活馬醫)
-            return genai.GenerativeModel('gemini-1.5-flash')
-            
-    except:
-        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -311,10 +279,16 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
+# --- ★★★ 核心：強制鎖定使用 'gemini-1.5-flash' ★★★ ---
 model = None
 if api_key:
-    # ★★★ 使用嚴格白名單抓取 ★★★
-    model = get_safe_flash_model(api_key)
+    genai.configure(api_key=api_key)
+    try:
+        # 直接指定 1.5 Flash，這是目前免費額度最穩的
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    except:
+        # 萬一連這個都 404 (極少見)，則退回 Pro
+        model = genai.GenerativeModel('gemini-pro')
 
 # --- 表單 ---
 data = st.session_state.current_client_data
