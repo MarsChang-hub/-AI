@@ -41,14 +41,6 @@ st.markdown("""
     /* 側邊欄 */
     section[data-testid="stSidebar"] { background-color: #001a33; border-right: 1px solid #ff9933; }
     
-    /* 按鈕優化 */
-    div.row-widget.stButton > button {
-        background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #ddd !important;
-    }
-    div.row-widget.stButton > button:hover {
-        border-color: #ff9933; color: #ff9933 !important;
-    }
-
     /* 報告框 (白底深藍字) */
     .report-box {
         background-color: #ffffff !important; padding: 40px; border-radius: 8px;
@@ -68,11 +60,6 @@ st.markdown("""
     .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #003366 !important; }
     .report-box tr:nth-child(even) { background-color: #f0f8ff; } 
 
-    /* 陪練室 */
-    .streamlit-expanderHeader { background-color: rgba(255, 255, 255, 0.1) !important; color: #ff9933 !important; border-radius: 8px; }
-    .streamlit-expanderContent { background-color: #0d1b2a !important; padding: 15px; border-radius: 0 0 8px 8px; }
-    .streamlit-expanderContent * { color: #e6f7ff !important; }
-    
     /* 浮水印 */
     .mars-watermark {
         position: fixed; top: 15px; right: 25px; color: rgba(255, 153, 51, 0.9);
@@ -140,7 +127,6 @@ def load_kb():
     count = 0
     debug_log = []
     
-    # 1. 讀取 TXT (UTF-8)
     txt_files = [f for f in os.listdir('.') if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
@@ -152,7 +138,6 @@ def load_kb():
         except Exception as e:
             debug_log.append(f"❌ TXT 失敗 {f}: {e}")
 
-    # 2. 讀取 PDF (透過 pdfplumber)
     if pdf_tool_ready:
         pdf_files = [f for f in os.listdir('.') if f.lower().endswith('.pdf')]
         for f in pdf_files:
@@ -170,7 +155,6 @@ def load_kb():
     
     return full_text, count, debug_log
 
-# 啟動時自動載入
 if st.session_state.kb_count == 0:
     t, c, d = load_kb()
     st.session_state.kb_text, st.session_state.kb_count, st.session_state.kb_debug = t, c, d
@@ -190,7 +174,7 @@ def generate_with_retry(model, prompt):
             if "429" in str(e): time.sleep(5)
             else: raise e
 
-# --- 8. 側邊欄 (隱藏設定區) ---
+# --- 8. 側邊欄 (設定區回歸，但只顯示模型選擇) ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
     ukey_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, type="password")
@@ -232,7 +216,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 知識庫狀態
+    # 知識庫診斷
     st.markdown("### 📚 知識庫狀態")
     if st.session_state.kb_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.kb_count} 份文件")
@@ -245,24 +229,45 @@ with st.sidebar:
             st.session_state.kb_count = 0
             st.rerun()
 
-    # --- ★★★ 自動後台連線 (隱藏 UI) ★★★ ---
-    model = None
+    st.markdown("---")
+    
+    # --- ★★★ 模型設定區 (顯示選擇) ★★★ ---
+    # 自動連線 API Key
+    api_key = ""
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
+        st.caption("🔑 API Key 已自動掛載")
+    else:
+        api_key = st.text_input("請輸入 Google API Key", type="password")
+
+    model = None
+    if api_key:
         genai.configure(api_key=api_key)
         try:
-            # 預設使用 gemini-1.5-flash
-            model = genai.GenerativeModel('gemini-1.5-flash')
-        except:
-            st.error("後台 API Key 驗證失敗")
-    else:
-        # 只有在沒設定 Secrets 時才顯示輸入框
-        st.markdown("---")
-        st.error("⚠️ 未設定 Secrets，請手動輸入")
-        manual_key = st.text_input("Google API Key", type="password")
-        if manual_key:
-            genai.configure(api_key=manual_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # 取得模型清單
+            all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            
+            # ★★★ 篩選邏輯：只留 Gemini 1.5 和 2.0 (排除舊版和 Gemma) ★★★
+            filtered_models = [m for m in all_models if "gemini-1.5" in m or "gemini-2.0" in m]
+            
+            # 排序：Flash 優先
+            filtered_models.sort(key=lambda x: "flash" not in x)
+            
+            if not filtered_models: # 防呆，萬一沒抓到新版，就回退顯示所有 gemini
+                filtered_models = [m for m in all_models if "gemini" in m]
+
+            st.markdown("### 🤖 模型選擇")
+            selected_model_name = st.selectbox(
+                "請選擇 AI 大腦 (推薦 Flash)", 
+                filtered_models, 
+                index=0
+            )
+            
+            model = genai.GenerativeModel(selected_model_name)
+            st.success(f"🟢 已連線: {selected_model_name.split('/')[-1]}")
+
+        except Exception as e:
+            st.error(f"連線失敗: {e}")
 
 # --- 9. 主畫面表單 ---
 col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
@@ -290,7 +295,6 @@ with st.form("client_form"):
     with c6: job = st.text_input("職業 / 職位", value=data.get("job", ""))
     with c7: interests = st.text_input("興趣 / 休閒", value=data.get("interests", ""))
 
-    # 既有保障收合
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
     with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
         g1, g2, g3 = st.columns(3)
@@ -313,7 +317,7 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄 (痛點)", value=data.get("quotes", ""), height=68)
-    with c9: target_product = st.text_area("🎯 銷售目標", value=data.get("target_product", ""), height=68)
+    with c9: target_product = st.text_area("🎯 銷售目標 (例: 醫療險、失能險)", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
@@ -346,39 +350,40 @@ if save_btn or analyze_btn:
             if not model: st.error("⚠️ 請確認 API Key 連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
-                # 額度保護邏輯：預設為 Flash 大額度
-                limit = 35000 
+                # 額度保護邏輯
+                is_flash = "flash" in model.model_name.lower() or "1.5" in model.model_name.lower()
+                limit = 35000 if is_flash else 5000
                 kb_context = st.session_state.kb_text[:limit]
                 
                 detailed_coverage = f"""
                 【保障盤點】日額:{cov_daily}, 實支:{cov_med_reim}, 手術:{cov_surg}, 意外:{cov_acc_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
                 """
                 
+                # ★★★ 修正 Prompt：強制優先銷售目標商品 ★★★
                 prompt = f"""
-                你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
-                請使用豐富的 Markdown 語法 (白底深藍字風格)。
+                你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」。
                 
-                【參考資料(優先使用)】: {kb_context}
-                【客戶】{client_name}, {life_path_num} 號人, {job}, 年收{income}萬
-                【語錄】"{quotes}"
-                【目標】{target_product}
-                {detailed_coverage}
-                
-                【Mars Chang 標準】
-                1.住院日額:4000。2.醫療實支:20萬。3.定額手術:1000。
-                4.意外實支:10萬。5.癌/重:50/30萬。6.放化療:3000。
-                7.長照失能:3萬。8.壽險:5倍年薪。
+                【戰略最高指導原則】
+                請仔細查看【銷售目標】欄位："{target_product}"。
+                1. **必須將「{target_product}」列為第一優先建議**。無論目前保障缺口為何，都必須先針對業務員想賣的商品提供銷售理由與商品推薦。
+                2. 如果客戶有其他嚴重缺口（如壽險不足），請將其建議放在報告的**最尾端 (Secondary Recommendations)**，並標註為「補充建議」，不要喧賓奪主。
+                3. 如果手冊中有符合「{target_product}」的凱基商品，請直接引用商品名稱與賣點。
 
-                【輸出要求】
+                【客戶資料】
+                {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
+                語錄："{quotes}"
+                現有保障：{detailed_coverage}
+                
+                【參考資料(知識庫)】: {kb_context}
+
+                【輸出要求 (請使用白底深藍字風格 Markdown)】
                 1. **[客戶畫像與心理分析]**
-                2. **[保障額度健康度檢核表]** (表格呈現：項目/目前/標準/狀態)
-                3. **[戰略目標 ({s_stage})]**
-                4. **[建議方向一]** (務必引用手冊中的凱基商品名稱與代號)
-                5. **[建議方向二]** (務必引用手冊中的凱基商品名稱與代號)
-                6. **[⚠️ 缺口風險與嚴重性分析]**
+                2. **[戰略目標：攻下 {target_product}]** (針對目標商品提供切入點與商品方案)
+                3. **[保障額度檢核表]**
+                4. **[補充建議：其他缺口]** (壽險或其他非目標險種請放這裡)
                 """
                 
-                with st.spinner("教練 Mars 正在分析..."):
+                with st.spinner("教練 Mars 正在擬定戰略..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -402,7 +407,6 @@ if st.session_state.current_strategy:
     
     st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
 
-    # 顯示對話紀錄
     for msg in st.session_state.chat_history:
         role = msg['role']
         content = msg['content']
@@ -426,13 +430,12 @@ if st.session_state.current_strategy:
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：人性化指導，請引用商品手冊內容。
+                任務：請針對「{target_product}」這個銷售目標進行指導。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": res.text})
                     
-                    # 更新對話紀錄
                     curr = st.session_state.current_client_data
                     if curr:
                         curr['chat_history'] = st.session_state.chat_history
