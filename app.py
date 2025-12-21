@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 高質感報告 CSS) ---
+# --- 🎨 風格設定 (深藍專業版 + 陪練室獨立方塊 CSS) ---
 st.markdown("""
 <style>
     :root {
@@ -100,6 +100,25 @@ st.markdown("""
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
+    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 美化 ★★★ --- */
+    /* 讓每一個對話框看起來像獨立的卡片 */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 255, 255, 0.1) !important; /* 微透亮底 */
+        color: #ff9933 !important; /* 標題橘色 */
+        border: 1px solid rgba(255, 153, 51, 0.3) !important;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+    /* 展開後的內容區塊 */
+    .streamlit-expanderContent {
+        border: 1px solid rgba(255, 153, 51, 0.2);
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        background-color: rgba(0, 0, 0, 0.2); /* 深色背景襯托文字 */
+        padding: 15px;
+    }
+    
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
         color: rgba(255, 153, 51, 0.9);
@@ -109,7 +128,6 @@ st.markdown("""
         text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
     #MainMenu, footer, header {visibility: hidden;}
-    .streamlit-expanderHeader { color: #ffffff !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -180,7 +198,7 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ API 自動重試函數 (防爆機制) ★★★ ---
+# --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
     base_delay = 5 
@@ -207,21 +225,13 @@ def get_flash_model(api_key):
     genai.configure(api_key=api_key)
     try:
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 1. 優先尋找 1.5 Flash
         target_model = next((m for m in models if 'gemini-1.5-flash' in m), None)
-        
-        # 2. 如果找不到明確的 1.5 flash，找任何有 flash 字眼的
         if not target_model:
             target_model = next((m for m in models if 'flash' in m), None)
-            
-        # 3. 真的都沒有，才找 Pro
         if not target_model:
             target_model = next((m for m in models if 'pro' in m), models[0])
-            
         return genai.GenerativeModel(target_model)
     except:
-        # 最後防線
         return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
@@ -283,7 +293,6 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
-# 初始化 Model (使用 1.5 Flash 優先邏輯)
 model = None
 if api_key:
     model = get_flash_model(api_key)
