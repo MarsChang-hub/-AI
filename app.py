@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 手機閱讀優化) ---
+# --- 🎨 風格設定 (深藍專業版 + 視覺核彈修復) ---
 st.markdown("""
 <style>
     :root {
@@ -64,10 +64,9 @@ st.markdown("""
         border: none;
     }
 
-    /* 報告框優化 */
+    /* --- ★★★ 報告框 (Report Box) 核彈級修復 ★★★ --- */
     .report-box {
         background-color: #ffffff !important;
-        color: #333333 !important;
         padding: 40px;
         border-radius: 8px;
         border-top: 8px solid var(--text-orange);
@@ -75,16 +74,34 @@ st.markdown("""
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
+    
+    /* 強制所有子元素變成黑色，覆蓋 Streamlit 的深色模式設定 */
+    .report-box * {
+        color: #000000 !important;
+    }
+
+    /* 標題與重點 */
     .report-box h1, .report-box h2 {
-        color: #001a33 !important;
+        color: #001a33 !important; /* 深藍標題 */
         border-bottom: 2px solid #ff9933;
         padding-bottom: 10px;
         margin-top: 30px;
         font-weight: 800;
     }
     .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
-    .report-box p, .report-box li { color: #333333 !important; line-height: 1.8; font-size: 16px; }
-    .report-box strong { color: #001a33 !important; background-color: #fff5e6; padding: 0 4px; }
+    
+    /* 內文行高優化 */
+    .report-box p, .report-box li { 
+        line-height: 1.8; 
+        font-size: 16px; 
+    }
+    
+    /* 粗體字螢光筆效果 */
+    .report-box strong { 
+        color: #000000 !important;
+        background-color: #fff5e6; 
+        padding: 0 4px; 
+    }
 
     /* 表格設計 */
     .report-box table {
@@ -92,17 +109,22 @@ st.markdown("""
         border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
     .report-box th {
-        background-color: #001a33 !important; color: #ffffff !important; padding: 15px; text-align: left;
+        background-color: #001a33 !important; 
+        color: #ffffff !important; /* 表頭維持白字 */
+        padding: 15px; text-align: left;
     }
+    /* 表頭文字必須強制白色，覆蓋上面的全域黑色設定 */
+    .report-box th * {
+        color: #ffffff !important;
+    }
+    
     .report-box td {
         padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #333333 !important;
     }
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- ★★★ 教練陪練室獨立對話框 (手機版修復核心) ★★★ --- */
-    
-    /* 1. 標題列：保持深色半透明，文字橘色 */
+    /* --- 教練陪練室獨立對話框 (深色背景白字) --- */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -111,32 +133,20 @@ st.markdown("""
         font-weight: bold;
         margin-top: 10px;
     }
-    
-    /* 2. 內容區塊：強制深色背景，防止手機版變白底 */
+    /* 強制深色不透明背景，確保文字清晰 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important; /* 使用不透明的深藍色 */
+        background-color: #0d1b2a !important; 
         padding: 15px;
     }
-    
-    /* 3. 強制文字顏色：確保所有文字都是亮白色，覆蓋手機預設 */
-    .streamlit-expanderContent p, 
-    .streamlit-expanderContent li, 
-    .streamlit-expanderContent span, 
-    .streamlit-expanderContent div {
+    /* 強制對話框內文字為白色 */
+    .streamlit-expanderContent * {
         color: #ffffff !important;
     }
     
-    /* 4. Chat Message 泡泡優化 */
-    div[data-testid="stChatMessage"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
-        padding: 10px;
-    }
-    
-    /* 隱藏漢堡選單，保留箭頭 */
+    /* 隱藏漢堡選單，保留左上箭頭 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
