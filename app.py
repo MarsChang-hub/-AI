@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 視覺核彈修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 視覺暴力修正) ---
 st.markdown("""
 <style>
     :root {
@@ -64,9 +64,9 @@ st.markdown("""
         border: none;
     }
 
-    /* --- ★★★ 報告框 (Report Box) 核彈級修復 ★★★ --- */
+    /* --- ★★★ 報告框 (Report Box) 暴力修正區 ★★★ --- */
     .report-box {
-        background-color: #ffffff !important;
+        background-color: #ffffff !important; /* 絕對白底 */
         padding: 40px;
         border-radius: 8px;
         border-top: 8px solid var(--text-orange);
@@ -75,12 +75,24 @@ st.markdown("""
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
     
-    /* 強制所有子元素變成黑色，覆蓋 Streamlit 的深色模式設定 */
-    .report-box * {
-        color: #000000 !important;
+    /* 強制指定報告框內所有可能的文字元素為黑色 */
+    .report-box p, 
+    .report-box span, 
+    .report-box li, 
+    .report-box div, 
+    .report-box strong,
+    .report-box b,
+    .report-box em,
+    .report-box h1, 
+    .report-box h2, 
+    .report-box h3, 
+    .report-box h4, 
+    .report-box h5, 
+    .report-box h6 {
+        color: #000000 !important; /* 絕對黑字 */
     }
 
-    /* 標題與重點 */
+    /* 標題特殊色覆蓋 */
     .report-box h1, .report-box h2 {
         color: #001a33 !important; /* 深藍標題 */
         border-bottom: 2px solid #ff9933;
@@ -88,18 +100,15 @@ st.markdown("""
         margin-top: 30px;
         font-weight: 800;
     }
-    .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
-    
-    /* 內文行高優化 */
-    .report-box p, .report-box li { 
-        line-height: 1.8; 
-        font-size: 16px; 
+    .report-box h3 { 
+        color: #cc4400 !important; /* 深橘副標 */
+        font-weight: 700; 
+        margin-top: 20px;
     }
     
     /* 粗體字螢光筆效果 */
     .report-box strong { 
-        color: #000000 !important;
-        background-color: #fff5e6; 
+        background-color: #fff5e6 !important; 
         padding: 0 4px; 
     }
 
@@ -113,18 +122,19 @@ st.markdown("""
         color: #ffffff !important; /* 表頭維持白字 */
         padding: 15px; text-align: left;
     }
-    /* 表頭文字必須強制白色，覆蓋上面的全域黑色設定 */
-    .report-box th * {
-        color: #ffffff !important;
-    }
+    /* 強制表頭內的文字為白色 */
+    .report-box th * { color: #ffffff !important; }
     
     .report-box td {
-        padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #333333 !important;
+        padding: 12px 15px; border-bottom: 1px solid #eeeeee; 
+        color: #000000 !important; /* 表格內容黑字 */
     }
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- 教練陪練室獨立對話框 (深色背景白字) --- */
+    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 暴力修正區 ★★★ --- */
+    
+    /* 標題列 */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -133,17 +143,24 @@ st.markdown("""
         font-weight: bold;
         margin-top: 10px;
     }
-    /* 強制深色不透明背景，確保文字清晰 */
+    
+    /* 內容區塊：深色底 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important; 
+        background-color: #0d1b2a !important; /* 絕對深藍底 */
         padding: 15px;
     }
-    /* 強制對話框內文字為白色 */
-    .streamlit-expanderContent * {
-        color: #ffffff !important;
+    
+    /* 強制指定對話框內所有可能的文字元素為白色 */
+    .streamlit-expanderContent p, 
+    .streamlit-expanderContent span, 
+    .streamlit-expanderContent li, 
+    .streamlit-expanderContent div,
+    .streamlit-expanderContent strong,
+    .streamlit-expanderContent code {
+        color: #ffffff !important; /* 絕對白字 */
     }
     
     /* 隱藏漢堡選單，保留左上箭頭 */
