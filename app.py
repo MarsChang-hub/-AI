@@ -198,7 +198,7 @@ def calculate_life_path_number(birth_text):
 
 # --- ★★★ API 自動重試函數 ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
-    max_retries = 5 
+    max_retries = 3
     base_delay = 5 
     
     for attempt in range(max_retries):
@@ -209,7 +209,7 @@ def generate_content_with_retry(model_instance, prompt):
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
                     raise e
-                wait_time = base_delay * (attempt + 1) + 10
+                wait_time = base_delay * (attempt + 1) + 5
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
                     placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
@@ -218,36 +218,33 @@ def generate_content_with_retry(model_instance, prompt):
             else:
                 raise e 
 
-# --- ★★★ 核心：智能尋找合法的 1.5 Flash 名稱 (解決 404) ★★★ ---
-def get_verified_flash_model(api_key):
+# --- ★★★ 核心：自動偵測正確的 Flash 模型 (第一次修正時的參數邏輯) ★★★ ---
+def get_auto_detected_model(api_key):
     genai.configure(api_key=api_key)
     try:
-        # 1. 取得所有可用模型清單 (這是最重要的一步，不要盲猜)
-        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # 1. 取得所有可用模型清單
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        # 2. 優先尋找明確的 1.5 Flash (且排除 8b 這種測試版，排除 2.0/2.5)
-        # 我們遍歷清單，尋找包含 "1.5" 和 "flash" 的項目
-        candidates = [m for m in all_models if "1.5" in m and "flash" in m]
+        # 2. 優先尋找 1.5 Flash (最穩定且額度高)
+        # 這是您第一次修正成功時的邏輯：去清單裡找名字有 'flash' 的
+        selected_model_name = next((m for m in available_models if '1.5' in m and 'flash' in m), None)
         
-        # 3. 如果有找到，優先選名字最短的 (通常是穩定版)，或者選包含 '001', 'latest' 的
-        if candidates:
-            # 優先選 models/gemini-1.5-flash
-            best_choice = next((m for m in candidates if m.endswith("gemini-1.5-flash")), None)
-            if not best_choice:
-                best_choice = candidates[0] # 否則選第一個找到的
-            return genai.GenerativeModel(best_choice)
+        if not selected_model_name:
+             # 如果沒有 1.5 flash，找任何 flash
+            selected_model_name = next((m for m in available_models if 'flash' in m), None)
             
-        # 4. 如果 1.5 Flash 沒找到，退而求其次找 Pro 1.5
-        pro_candidates = [m for m in all_models if "1.5" in m and "pro" in m]
-        if pro_candidates:
-            return genai.GenerativeModel(pro_candidates[0])
+        if not selected_model_name:
+            # 真的都沒有，找 Pro (排除 2.5)
+            selected_model_name = next((m for m in available_models if 'pro' in m), None)
             
-        # 5. 最後防線：Gemini Pro (Legacy)
-        return genai.GenerativeModel("gemini-pro")
-        
-    except Exception as e:
-        # 如果連 list_models 都失敗，只能盲猜一個最可能的
-        return genai.GenerativeModel("gemini-1.5-flash")
+        # 如果還是空的，就強制用字串 (極少發生，除非 API Key 權限全無)
+        if not selected_model_name:
+            selected_model_name = 'gemini-1.5-flash'
+            
+        return genai.GenerativeModel(selected_model_name)
+    except:
+        # 最後防線，直接回傳預設物件，避免 crash
+        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -310,8 +307,8 @@ else:
 
 model = None
 if api_key:
-    # ★★★ 使用智能驗證函數抓取正確 ID ★★★
-    model = get_verified_flash_model(api_key)
+    # ★★★ 使用回歸第一次成功的動態偵測函數 ★★★
+    model = get_auto_detected_model(api_key)
 
 # --- 表單 ---
 data = st.session_state.current_client_data
