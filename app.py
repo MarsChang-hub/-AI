@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 視覺暴力修正) ---
+# --- 🎨 風格設定 (深藍專業版 + 藍色文字優化) ---
 st.markdown("""
 <style>
     :root {
@@ -64,7 +64,7 @@ st.markdown("""
         border: none;
     }
 
-    /* --- ★★★ 報告框 (Report Box) 暴力修正區 ★★★ --- */
+    /* --- ★★★ 報告框 (Report Box) 藍色文字修正 ★★★ --- */
     .report-box {
         background-color: #ffffff !important; /* 絕對白底 */
         padding: 40px;
@@ -75,39 +75,36 @@ st.markdown("""
         font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     }
     
-    /* 強制指定報告框內所有可能的文字元素為黑色 */
+    /* 強制指定報告框內所有文字為「深海藍」 */
     .report-box p, 
     .report-box span, 
     .report-box li, 
     .report-box div, 
-    .report-box strong,
     .report-box b,
     .report-box em,
-    .report-box h1, 
-    .report-box h2, 
-    .report-box h3, 
     .report-box h4, 
     .report-box h5, 
     .report-box h6 {
-        color: #000000 !important; /* 絕對黑字 */
+        color: #003366 !important; /* ★★★ 這裡改成深藍色 ★★★ */
     }
 
-    /* 標題特殊色覆蓋 */
+    /* 標題與重點 */
     .report-box h1, .report-box h2 {
-        color: #001a33 !important; /* 深藍標題 */
+        color: #002244 !important; /* 標題用更深的午夜藍 */
         border-bottom: 2px solid #ff9933;
         padding-bottom: 10px;
         margin-top: 30px;
         font-weight: 800;
     }
     .report-box h3 { 
-        color: #cc4400 !important; /* 深橘副標 */
+        color: #cc4400 !important; /* 副標維持橘色 */
         font-weight: 700; 
         margin-top: 20px;
     }
     
     /* 粗體字螢光筆效果 */
     .report-box strong { 
+        color: #002244 !important; /* 粗體深藍 */
         background-color: #fff5e6 !important; 
         padding: 0 4px; 
     }
@@ -118,23 +115,21 @@ st.markdown("""
         border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
     .report-box th {
-        background-color: #001a33 !important; 
+        background-color: #003366 !important; /* 表頭改為深藍底 */
         color: #ffffff !important; /* 表頭維持白字 */
         padding: 15px; text-align: left;
     }
-    /* 強制表頭內的文字為白色 */
     .report-box th * { color: #ffffff !important; }
     
     .report-box td {
         padding: 12px 15px; border-bottom: 1px solid #eeeeee; 
-        color: #000000 !important; /* 表格內容黑字 */
+        color: #003366 !important; /* 表格內容深藍字 */
     }
-    .report-box tr:nth-child(even) { background-color: #f8f9fa; }
+    .report-box tr:nth-child(even) { background-color: #f0f8ff; } /* 偶數行淺藍底 */
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 暴力修正區 ★★★ --- */
+    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 修正 ★★★ --- */
     
-    /* 標題列 */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -144,26 +139,25 @@ st.markdown("""
         margin-top: 10px;
     }
     
-    /* 內容區塊：深色底 */
+    /* 內容區塊：強制深色背景 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important; /* 絕對深藍底 */
+        background-color: #0d1b2a !important; 
         padding: 15px;
     }
     
-    /* 強制指定對話框內所有可能的文字元素為白色 */
+    /* 強制指定對話框內文字為「極亮藍白」 */
     .streamlit-expanderContent p, 
     .streamlit-expanderContent span, 
     .streamlit-expanderContent li, 
     .streamlit-expanderContent div,
     .streamlit-expanderContent strong,
     .streamlit-expanderContent code {
-        color: #ffffff !important; /* 絕對白字 */
+        color: #e6f7ff !important; /* ★★★ 這裡改成亮藍白色 ★★★ */
     }
     
-    /* 隱藏漢堡選單，保留左上箭頭 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
@@ -247,18 +241,23 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- 核心：過濾模型邏輯 ---
+# --- 核心：過濾模型邏輯 (保留 Gemma 優先權) ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 使用者指定的優先關鍵字
         priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
+        
         filtered_list = []
         for key in priority_keywords:
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
+            
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
+            
         filtered_list = list(set(filtered_list))
         filtered_list.sort()
         return filtered_list
