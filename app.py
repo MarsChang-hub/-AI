@@ -183,59 +183,46 @@ def calculate_life_path_number(birth_text):
 # --- ★★★ API 自動重試函數 (防爆機制) ★★★ ---
 def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
-    base_delay = 10 # 增加基礎等待時間，避免太快重試又撞牆
+    base_delay = 5 
     
     for attempt in range(max_retries):
         try:
             return model_instance.generate_content(prompt)
         except Exception as e:
             error_str = str(e)
-            # 偵測 429 額度錯誤
             if "429" in error_str or "Quota" in error_str:
                 if attempt == max_retries - 1:
-                    raise e # 最後一次失敗
-                
-                # 計算等待時間
-                wait_time = base_delay * (attempt + 1) + 15
+                    raise e
+                wait_time = base_delay * (attempt + 1) + 5
                 placeholder = st.empty()
                 for t in range(wait_time, 0, -1):
-                    placeholder.warning(f"⚠️ API 額度滿載 (429)... 系統自動排隊中，請稍候 {t} 秒 (嘗試 {attempt+1}/{max_retries})")
+                    placeholder.warning(f"⚠️ API 額度冷卻中 (429)... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
                     time.sleep(1)
                 placeholder.empty()
             else:
                 raise e 
 
-# --- ★★★ 核心：強制優先使用 2.5 或最新模型 ★★★ ---
-def get_advanced_model(api_key):
+# --- ★★★ 核心：優先鎖定 1.5 Flash ★★★ ---
+def get_flash_model(api_key):
     genai.configure(api_key=api_key)
     try:
-        # 1. 取得所有可用模型
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
-        # 2. 定義優先順序：您指定的 2.5 > 2.0 > 1.5 Pro > 1.5 Flash
-        # 注意：Google 有時候標示為 gemini-2.0-flash-exp 或其他名稱，這裡做模糊比對
-        priority_order = [
-            "gemini-2.5",       # 嘗試抓 2.5
-            "gemini-2.0",       # 嘗試抓 2.0
-            "gemini-1.5-pro",   # 畫質與推理能力較好
-            "gemini-1.5-flash"  # 最後的防線
-        ]
+        # 1. 優先尋找 1.5 Flash
+        target_model = next((m for m in models if 'gemini-1.5-flash' in m), None)
         
-        selected_model_name = None
-        for p_model in priority_order:
-            found = next((m for m in models if p_model in m), None)
-            if found:
-                selected_model_name = found
-                break
-        
-        # 3. 如果真的都沒有，隨便抓一個
-        if not selected_model_name:
-            selected_model_name = next((m for m in models if 'flash' in m), models[0])
+        # 2. 如果找不到明確的 1.5 flash，找任何有 flash 字眼的
+        if not target_model:
+            target_model = next((m for m in models if 'flash' in m), None)
             
-        # 4. 回傳模型物件
-        return genai.GenerativeModel(selected_model_name)
+        # 3. 真的都沒有，才找 Pro
+        if not target_model:
+            target_model = next((m for m in models if 'pro' in m), models[0])
+            
+        return genai.GenerativeModel(target_model)
     except:
-        return genai.GenerativeModel('gemini-pro')
+        # 最後防線
+        return genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -296,10 +283,10 @@ if "GOOGLE_API_KEY" in st.secrets:
 else:
     api_key = st.text_input("請輸入 Google API Key", type="password")
 
-# 初始化 Model (優先抓 2.5 或最新版)
+# 初始化 Model (使用 1.5 Flash 優先邏輯)
 model = None
 if api_key:
-    model = get_advanced_model(api_key)
+    model = get_flash_model(api_key)
 
 # --- 表單 ---
 data = st.session_state.current_client_data
@@ -468,7 +455,6 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
@@ -528,7 +514,6 @@ if st.session_state.current_strategy:
                 任務：人性化指導。
                 """
                 try:
-                    # 使用自動重試函數
                     response = generate_content_with_retry(model, chat_prompt)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                     
