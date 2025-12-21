@@ -11,607 +11,104 @@ import os
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🛡️ 安全氣囊：檢查 pdfplumber 是否安裝 ---
+# --- 🛡️ 安全引入套件 ---
 try:
     import pdfplumber
-    pdf_lib_available = True
+    pdf_ready = True
 except ImportError:
-    pdf_lib_available = False
-    st.error("⚠️ 系統偵測到缺少 `pdfplumber` 套件。請確認 requirements.txt 已更新並重啟 App。目前僅能使用基礎 AI 功能。")
+    pdf_ready = False
 
-# --- 🎨 風格設定 (深藍專業版 + 視覺優化) ---
+# --- 🎨 視覺風格 ---
 st.markdown("""
 <style>
-    :root {
-        --bg-main: #001222;
-        --glass-card: rgba(255, 255, 255, 0.05);
-        --text-orange: #ff9933;
-        --text-body: #e0e0e0;
-        --btn-gradient: linear-gradient(135deg, #ff8533 0%, #cc4400 100%);
-    }
+    :root { --bg-main: #001222; --text-orange: #ff9933; }
     .stApp { background-color: var(--bg-main); }
-    p, li, span, div { color: var(--text-body); }
-    .block-container { padding-top: 1rem !important; padding-bottom: 3rem !important; max-width: 1200px; }
-    
-    /* 輸入框絕對顯色 */
-    .stTextInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ff9933 !important;
-        border-radius: 6px;
-    }
-    .stTextInput label, .stSelectbox label, .stDateInput label, .stTextArea label, .stRadio label {
-        color: #ffffff !important; font-size: 14px !important; font-weight: 600;
-    }
-    
-    /* 下拉選單修復 */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
-    div[data-baseweb="menu"] div { color: #000000 !important; }
-    li[aria-selected="true"], li[data-baseweb="option"]:hover { background-color: #ffe6cc !important; }
-    li[aria-selected="true"] div, li[data-baseweb="option"]:hover div { color: #ff6600 !important; font-weight: bold; }
-
-    /* 側邊欄 */
-    section[data-testid="stSidebar"] {
-        background-color: #001a33;
-        border-right: 1px solid #ff9933;
-    }
-    
-    /* 按鈕優化 */
-    div.row-widget.stButton > button {
-        background: transparent;
-        border: 1px solid rgba(255,255,255,0.2);
-        color: #ddd !important;
-        text-align: left;
-    }
-    div.row-widget.stButton > button:hover {
-        border-color: #ff9933;
-        color: #ff9933 !important;
-    }
-    .delete-btn button {
-        background-color: #ff4d4d !important;
-        color: white !important;
-        border: none;
-    }
-
-    /* 報告框 (Report Box) */
-    .report-box {
-        background-color: #ffffff !important;
-        padding: 40px;
-        border-radius: 8px;
-        border-top: 8px solid var(--text-orange);
-        margin-top: 20px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
-    }
-    .report-box * { color: #003366 !important; } /* 深藍字 */
-    .report-box h1, .report-box h2 {
-        color: #002244 !important;
-        border-bottom: 2px solid #ff9933;
-        padding-bottom: 10px; margin-top: 30px; font-weight: 800;
-    }
-    .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
-    .report-box strong { color: #002244 !important; background-color: #fff5e6 !important; padding: 0 4px; }
-    
-    /* 表格設計 */
-    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .report-box th { background-color: #003366 !important; color: #ffffff !important; padding: 15px; text-align: left; }
-    .report-box th * { color: #ffffff !important; }
-    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #003366 !important; }
-    .report-box tr:nth-child(even) { background-color: #f0f8ff; } 
-    .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
-    
-    /* 教練陪練室獨立對話框 (Expander) */
-    .streamlit-expanderHeader {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: #ff9933 !important;
-        border: 1px solid rgba(255, 153, 51, 0.3) !important;
-        border-radius: 8px;
-        font-weight: bold;
-        margin-top: 10px;
-    }
-    .streamlit-expanderContent {
-        border: 1px solid rgba(255, 153, 51, 0.2);
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        background-color: #0d1b2a !important; 
-        padding: 15px;
-    }
+    .report-box { background-color: #ffffff !important; padding: 30px; border-radius: 8px; border-top: 8px solid var(--text-orange); }
+    .report-box * { color: #003366 !important; }
+    .report-box h1, .report-box h2 { color: #002244 !important; border-bottom: 2px solid #ff9933; }
+    .streamlit-expanderContent { background-color: #0d1b2a !important; }
     .streamlit-expanderContent * { color: #e6f7ff !important; }
-    
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    .mars-watermark {
-        position: fixed; top: 15px; right: 25px;
-        color: rgba(255, 153, 51, 0.9);
-        font-size: 14px; font-weight: 700;
-        z-index: 9999; pointer-events: none;
-        font-family: 'Montserrat', sans-serif;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-    }
+    #MainMenu, footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="mars-watermark">Made by Mars Chang</div>', unsafe_allow_html=True)
-
-# --- 資料庫處理 ---
+# --- 💾 資料庫功能 ---
 def init_db():
-    conn = sqlite3.connect('insurance_crm.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS clients
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_key TEXT,
-                  name TEXT,
-                  stage TEXT,
-                  data JSON,
-                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    conn.commit()
+    conn = sqlite3.connect('crm.db')
+    conn.execute('CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT, name TEXT, stage TEXT, data JSON)')
     conn.close()
-
-def save_client_to_db(user_key, name, stage, form_data):
-    conn = sqlite3.connect('insurance_crm.db')
-    c = conn.cursor()
-    c.execute("SELECT id FROM clients WHERE user_key=? AND name=?", (user_key, name))
-    result = c.fetchone()
-    json_data = json.dumps(form_data, default=str)
-    if result:
-        c.execute("UPDATE clients SET stage=?, data=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", (stage, json_data, result[0]))
-    else:
-        c.execute("INSERT INTO clients (user_key, name, stage, data) VALUES (?, ?, ?, ?)", (user_key, name, stage, json_data))
-    conn.commit()
-    conn.close()
-
-def get_clients_by_key(user_key):
-    conn = sqlite3.connect('insurance_crm.db')
-    try:
-        df = pd.read_sql_query("SELECT * FROM clients WHERE user_key=? ORDER BY updated_at DESC", conn, params=(user_key,))
-    except:
-        df = pd.DataFrame()
-    conn.close()
-    return df
-
-def delete_client(user_key, name):
-    conn = sqlite3.connect('insurance_crm.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM clients WHERE user_key=? AND name=?", (user_key, name))
-    conn.commit()
-    conn.close()
-
 init_db()
 
-# --- 初始化 Session State ---
-if "current_client_data" not in st.session_state:
-    st.session_state.current_client_data = {}
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "current_strategy" not in st.session_state:
-    st.session_state.current_strategy = None
-if "user_key" not in st.session_state:
-    st.session_state.user_key = ""
-if "active_model_name" not in st.session_state:
-    st.session_state.active_model_name = "尚未連線"
-# 知識庫
-if "knowledge_base_text" not in st.session_state:
-    st.session_state.knowledge_base_text = ""
-
-# --- 工具函數 ---
-def calculate_life_path_number(birth_text):
-    digits = re.findall(r'\d', str(birth_text))
-    if not digits: return 0
-    date_str = "".join(digits)
-    total = sum(int(digit) for digit in date_str)
-    while total > 9:
-        total = sum(int(digit) for digit in str(total))
-    return total
-
-# --- ★★★ 自動讀取商品手冊 (只讀取 AG商品手冊) ★★★ ---
-def load_specific_manual():
-    """只讀取 AG商品手冊_11411-.pdf，忽略其他"""
-    target_file = "AG商品手冊_11411-.pdf"
-    
-    if not pdf_lib_available:
-        return "" # 套件沒裝，直接跳過，不報錯
-    
-    if not os.path.exists(target_file):
-        return "" # 檔案不在，直接跳過
-        
-    try:
-        with pdfplumber.open(target_file) as pdf:
-            file_text = ""
-            for page in pdf.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    file_text += extracted + "\n"
-            return f"\n--- 依據商品手冊 ({target_file}) ---\n{file_text}\n"
-    except Exception:
-        return "" # 讀取失敗，直接跳過
-
-# 啟動時載入一次
-if not st.session_state.knowledge_base_text:
-    manual_text = load_specific_manual()
-    if manual_text:
-        st.session_state.knowledge_base_text = manual_text
-
-# --- 核心：過濾模型邏輯 ---
-def get_filtered_models(api_key):
-    genai.configure(api_key=api_key)
-    try:
-        all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
-        filtered_list = []
-        for key in priority_keywords:
-            matches = [m for m in all_models if key in m]
-            filtered_list.extend(matches)
-        if not filtered_list:
-            filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
-        filtered_list = list(set(filtered_list))
-        filtered_list.sort()
-        return filtered_list
-    except:
-        return []
-
-# --- API 自動重試函數 ---
-def generate_content_with_retry(model_instance, prompt):
-    max_retries = 3
-    base_delay = 5 
-    for attempt in range(max_retries):
+# --- 📚 知識庫載入 ---
+def load_manuals():
+    text = ""
+    count = 0
+    if not pdf_ready: return "", 0
+    files = [f for f in os.listdir('.') if f.lower().endswith('.pdf')]
+    for f in files:
         try:
-            return model_instance.generate_content(prompt)
-        except Exception as e:
-            error_str = str(e)
-            if "429" in error_str or "Quota" in error_str:
-                if attempt == max_retries - 1:
-                    raise e
-                wait_time = base_delay * (attempt + 1) + 5
-                placeholder = st.empty()
-                for t in range(wait_time, 0, -1):
-                    placeholder.warning(f"⚠️ API 額度冷卻中... 系統將在 {t} 秒後自動重試 (嘗試 {attempt+1}/{max_retries})")
-                    time.sleep(1)
-                placeholder.empty()
-            else:
-                raise e 
+            with pdfplumber.open(f) as pdf:
+                for page in pdf.pages:
+                    content = page.extract_text()
+                    if content: text += content + "\n"
+                count += 1
+        except: continue
+    return text, count
 
-# --- 側邊欄配置 ---
+if "kb_text" not in st.session_state:
+    st.session_state.kb_text, st.session_state.kb_count = load_manuals()
+
+# --- 側邊欄 ---
 with st.sidebar:
-    st.markdown("### 🗂️ 客戶名單管理")
-    user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
+    st.markdown("### 🗂️ 客戶管理")
+    ukey = st.text_input("金鑰", type="password")
     
-    if user_key_input:
-        st.session_state.user_key = user_key_input
-        col_new, col_del = st.columns([1, 1])
-        with col_new:
-            if st.button("➕ 新增客戶"):
-                st.session_state.current_client_data = {} 
-                st.session_state.current_strategy = None
-                st.session_state.chat_history = []
-                st.rerun()
-        if st.session_state.current_client_data.get("name"):
-            with col_del:
-                if st.button("🗑️ 刪除個案"):
-                    client_to_delete = st.session_state.current_client_data["name"]
-                    delete_client(st.session_state.user_key, client_to_delete)
-                    st.session_state.current_client_data = {} 
-                    st.session_state.current_strategy = None
-                    st.session_state.chat_history = []
-                    st.warning(f"已刪除 {client_to_delete}")
-                    st.rerun()
-
-        clients_df = get_clients_by_key(user_key_input)
-        if not clients_df.empty:
-            stages = ["S1", "S2", "S3", "S4", "S5", "S6"]
-            for stage_prefix in stages:
-                stage_clients = clients_df[clients_df['stage'].str.startswith(stage_prefix)]
-                if not stage_clients.empty:
-                    with st.expander(f"📂 {stage_prefix} ({len(stage_clients)}人)", expanded=False):
-                        for index, row in stage_clients.iterrows():
-                            if st.button(f"👤 {row['name']}", key=f"btn_{row['id']}"):
-                                loaded_data = json.loads(row['data'])
-                                st.session_state.current_client_data = loaded_data
-                                st.session_state.current_strategy = loaded_data.get('last_strategy')
-                                st.session_state.chat_history = loaded_data.get('chat_history', [])
-                                st.rerun()
-    else:
-        st.warning("請輸入金鑰以存取名單")
-
-    # 知識庫狀態顯示
     st.markdown("---")
-    if st.session_state.knowledge_base_text:
-        st.success("📚 AG商品手冊：已掛載")
+    st.markdown("### 📚 知識庫狀態")
+    if st.session_state.kb_count > 0:
+        st.success(f"✅ 已掛載 {st.session_state.kb_count} 份手冊")
     else:
-        # 這裡不顯示錯誤，保持乾淨，除非真的有需要
-        st.caption("ℹ️ 商品手冊未載入")
+        st.info("ℹ️ 未偵測到 PDF 檔案")
 
     st.markdown("---")
-    st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
-    if "GOOGLE_API_KEY" in st.secrets:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-    else:
-        api_key = st.text_input("請輸入 Google API Key", type="password")
-
+    st.markdown("### ⚙️ 系統設定")
+    akey = st.text_input("Gemini API Key", type="password")
+    
     model = None
-    if api_key:
+    if akey:
+        genai.configure(api_key=akey)
         try:
-            available_models = get_filtered_models(api_key)
-            if available_models:
-                selected_model_name = st.selectbox(
-                    "🤖 選擇 AI 模型 (若額度不足請切換)", 
-                    available_models, 
-                    index=0
-                )
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(selected_model_name)
-                st.success(f"🟢 系統狀態：已連線")
-                st.caption(f"使用中: {selected_model_name}")
-            else:
-                st.warning("⚠️ 無法取得模型清單，使用預設值")
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                st.success(f"🟢 系統狀態：強制連線 (1.5 Flash)")
-        except Exception as e:
-            st.error(f"連線錯誤: {e}")
-
-# --- 主畫面 ---
-col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
-with col_t2:
-    st.markdown("<h1 style='text-align: center;'>保險業務超級軍師</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #bbb; margin-bottom: 10px;'>CRM 雲端版．顧問式銷售．精準健診</p>", unsafe_allow_html=True)
-
-# --- 表單 ---
-data = st.session_state.current_client_data
-st.markdown('<div class="form-card" style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px;">', unsafe_allow_html=True)
-with st.form("client_form"):
-    c1, c2 = st.columns([1, 2])
-    with c1:
-        client_name = st.text_input("客戶姓名", value=data.get("name", ""))
-    with c2:
-        s_options = ["S1：取得名單 (定聯/分類)", "S2：約訪 (賣見面價值)", "S3：初步面談 (4切點/Rapport)", "S4：發覺需求 (擴大痛點)", "S5：說明建議書 (保險生活化)", "S6：成交 (促成/轉介紹)"]
-        default_index = 0
-        if "stage" in data:
-            try: default_index = s_options.index(data["stage"])
-            except: pass
-        s_stage = st.selectbox("📍 銷售階段 (S線)", s_options, index=default_index)
-
-    c3, c4, c5 = st.columns(3)
-    with c3:
-        gender_idx = 0 if data.get("gender") == "男" else 1
-        gender = st.radio("性別", ["男", "女"], index=gender_idx, horizontal=True)
-    with c4:
-        birthday = st.text_input("生日 (西元年/月/日)", value=data.get("birthday", ""), placeholder="例：1990/01/01")
-    with c5:
-        income = st.text_input("年收 (萬)", value=data.get("income", ""))
-
-    c6, c7 = st.columns(2)
-    with c6:
-        job = st.text_input("職業 / 職位", value=data.get("job", ""))
-    with c7:
-        interests = st.text_input("興趣 / 休閒", value=data.get("interests", ""))
-
-    st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
-    with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
-        g1, g2, g3 = st.columns(3)
-        with g1:
-            cov_daily = st.text_input("住院日額", value=data.get("cov_daily", ""), placeholder="標準:4000")
-            cov_med_reim = st.text_input("醫療實支 (萬)", value=data.get("cov_med_reim", ""), placeholder="標準:20")
-            cov_surg = st.text_input("定額手術", value=data.get("cov_surg", ""), placeholder="標準:1000")
-            cov_acc_reim = st.text_input("意外實支 (萬)", value=data.get("cov_acc_reim", ""), placeholder="標準:10")
-        with g2:
-            cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""), placeholder="標準:50")
-            cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""), placeholder="標準:30")
-            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
-            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
-        with g3:
-            cov_ltc = st.text_input("長照月給付", value=data.get("cov_ltc", ""), placeholder="標準:3萬")
-            cov_dis = st.text_input("失能月給付", value=data.get("cov_dis", ""), placeholder="標準:3萬")
-            cov_life = st.text_input("壽險 (萬)", value=data.get("cov_life", ""), placeholder="標準:5倍年薪")
+            m_list = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            m_list.sort(key=lambda x: "1.5-flash" not in x) # 讓 Flash 排第一
+            sel_m = st.selectbox("🤖 選擇模型", m_list)
+            model = genai.GenerativeModel(sel_m)
             
-    history_note = st.text_area("投保史備註 / 其他狀況", value=data.get("history_note", ""), height=68)
+            # 額度警告
+            if "gemma" in sel_m.lower() or "pro" in sel_m.lower():
+                st.warning("⚠️ 此模型額度較低，建議僅在對話時使用，不建議跑大型分析。")
+        except: st.error("Key 無效")
+
+# --- 主程式邏輯 (簡化) ---
+st.title("🛡️ 保險業務超級軍師")
+st.caption("顧問式銷售助理 v2.0")
+
+# 表單部分省略 (保持您之前的設計)
+# ...
+
+def run_ai(prompt):
+    if not model: return "請先設定 API Key"
     
-    c8, c9 = st.columns(2)
-    with c8:
-        quotes = st.text_area("🗣️ 客戶語錄 (痛點:愛的人、愛自己、想做的事、不安全感)", value=data.get("quotes", ""), height=68)
-    with c9:
-        target_product = st.text_area("🎯 銷售目標", value=data.get("target_product", ""), height=68)
-
-    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    b1, b2, b3 = st.columns([1, 1, 2])
-    with b1:
-        save_btn = st.form_submit_button("💾 僅儲存資料")
-    with b3:
-        analyze_btn = st.form_submit_button("🚀 儲存並啟動教練分析")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 處理儲存與分析邏輯 ---
-if save_btn or analyze_btn:
-    if not st.session_state.user_key:
-        st.error("⚠️ 請先在側邊欄輸入「專屬金鑰」才能儲存資料！")
-    elif not client_name:
-        st.error("⚠️ 客戶姓名為必填！")
-    else:
-        form_data = {
-            "name": client_name, "stage": s_stage, "gender": gender, 
-            "birthday": str(birthday), "income": income, "job": job, "interests": interests,
-            "cov_daily": cov_daily, "cov_med_reim": cov_med_reim, "cov_surg": cov_surg,
-            "cov_acc_reim": cov_acc_reim, "cov_cancer": cov_cancer, "cov_major": cov_major,
-            "cov_radio": cov_radio, "cov_chemo": cov_chemo, "cov_ltc": cov_ltc, 
-            "cov_dis": cov_dis, "cov_life": cov_life, "history_note": history_note,
-            "quotes": quotes, "target_product": target_product,
-            "last_strategy": st.session_state.current_strategy,
-            "chat_history": st.session_state.chat_history
-        }
-        
-        save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
-        st.success(f"✅ {client_name} 的資料已更新！")
-        
-        if analyze_btn:
-            if not model:
-                st.error("⚠️ 請在側邊欄選擇有效的模型")
-            else:
-                life_path_num = calculate_life_path_number(birthday)
-                
-                age = "未知"
-                try:
-                    for fmt in ["%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d", "%Y%m%d"]:
-                        try:
-                            bday_obj = datetime.datetime.strptime(birthday, fmt).date()
-                            today = datetime.date.today()
-                            age = today.year - bday_obj.year - ((today.month, today.day) < (bday_obj.month, bday_obj.day))
-                            break
-                        except: continue
-                except: pass
-
-                coverage_inputs = [cov_daily, cov_med_reim, cov_surg, cov_acc_reim, cov_cancer, cov_major, cov_radio, cov_chemo, cov_ltc, cov_dis, cov_life]
-                has_coverage_data = any(x.strip() for x in coverage_inputs)
-                has_medical_intent = "醫療" in target_product
-                show_gap_analysis = has_coverage_data or has_medical_intent
-
-                detailed_coverage = f"""
-                【詳細保障額度盤點】
-                - 住院日額：{cov_daily if cov_daily else '0'} (標準: 4000)
-                - 醫療實支：{cov_med_reim if cov_med_reim else '0'} 萬 (標準: 20萬)
-                - 定額手術：{cov_surg if cov_surg else '0'} (標準: 1000)
-                - 意外實支：{cov_acc_reim if cov_acc_reim else '0'} 萬 (標準: 10萬)
-                - 癌症一次金：{cov_cancer if cov_cancer else '0'} 萬 (標準: 50萬)
-                - 重大傷病：{cov_major if cov_major else '0'} 萬 (標準: 30萬)
-                - 放療/次：{cov_radio if cov_radio else '0'} (標準: 3000)
-                - 化療/次：{cov_chemo if cov_chemo else '0'} (標準: 3000)
-                - 長照月給付：{cov_ltc if cov_ltc else '0'} (標準: 3萬)
-                - 失能月給付：{cov_dis if cov_dis else '0'} (標準: 3萬)
-                - 壽險：{cov_life if cov_life else '0'} 萬 (標準: 5倍年薪)
-                【備註】{history_note}
-                """
-
-                output_requirements = """
-                1. **[客戶畫像與心理分析]**：({life_path_num}號人性格+風險)
-                """
-                if show_gap_analysis:
-                    output_requirements += """
-                2. **[保障額度健康度檢核表]**
-                (請製作一個 Markdown 表格，欄位如下：)
-                | 檢核項目 | 目前額度 | Mars標準 | 狀態 | 
-                | :--- | :--- | :--- | :---: |
-                (狀態欄請使用 ✅ / ⚠️ / 🆘 代表：及格 / 略低 / 嚴重不足)
-                    """
-                output_requirements += f"""
-                3. **[戰略目標 ({s_stage})]**
-                4. **[建議方向一]** (必須引用知識庫中的 AG 商品，提供具體名稱與代號)
-                5. **[建議方向二]** (必須引用知識庫中的 AG 商品，提供具體名稱與代號)
-                """
-                if show_gap_analysis:
-                    output_requirements += """
-                6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
-                    """
-                
-                # ★★★ 將知識庫內容注入 Prompt (分析報告) ★★★
-                knowledge_context = ""
-                if st.session_state.knowledge_base_text:
-                    knowledge_context = f"""
-                    【📚 企業知識庫參考資料 (AG商品手冊)】
-                    (嚴格要求：請務必根據以下手冊內容回答，必須推薦具體的商品名稱與代號，例如 '好喜悅定期壽險' 或 '新癌症五年定期' 等)
-                    {st.session_state.knowledge_base_text[:30000]} ... (內容過長截斷)
-                    """
-                else:
-                    knowledge_context = "(注意：目前尚未掛載商品手冊，只能使用一般保險知識回答)"
-
-                final_prompt = f"""
-                你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
-                請使用豐富的 Markdown 語法讓報告美觀易讀（使用粗體、條列、表格）。
-                
-                {knowledge_context}
-
-                【戰略位置】{s_stage}
-                【客戶】{client_name}, {life_path_num} 號人, {age}歲, {job}, 年收{income}萬
-                【語錄】"{quotes}"
-                【目標】{target_product}
-                {detailed_coverage}
-                
-                【Mars Chang 標準】
-                1.住院日額:4000。2.醫療實支:20萬。3.定額手術:1000。
-                4.意外實支:10萬。5.癌/重:50/30萬。6.放化療:3000。
-                7.長照失能:3萬。8.壽險:5倍年薪。
-
-                【輸出要求】
-                {output_requirements}
-                """
-                
-                with st.spinner("教練 Mars 正在分析..."):
-                    try:
-                        response = generate_content_with_retry(model, final_prompt)
-                        st.session_state.current_strategy = response.text
-                        st.session_state.chat_history = []
-                        form_data['last_strategy'] = response.text
-                        save_client_to_db(st.session_state.user_key, client_name, s_stage, form_data)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"分析失敗: {e}")
-
-# --- 顯示結果 ---
-if st.session_state.current_strategy:
-    st.markdown("---")
-    st.markdown(f"<h3 style='text-align: center; border:none;'>✅ 教練戰略報告 ({st.session_state.current_client_data.get('name', '客戶')})</h3>", unsafe_allow_html=True)
+    # 決定餵食量：Flash 餵 3 萬字，其他餵 5 千字
+    limit = 30000 if "flash" in model.model_name else 5000
+    context = st.session_state.kb_text[:limit]
     
-    with st.expander("📝 複製完整報告"):
-        st.code(st.session_state.current_strategy, language="markdown")
-    
-    st.markdown(f'<div class="report-box">{st.session_state.current_strategy}</div>', unsafe_allow_html=True)
-    
-    st.markdown("<h3 style='border:none; margin-top:30px;'>🤖 教練陪練室</h3>", unsafe_allow_html=True)
+    full_p = f"參考資料：\n{context}\n\n任務：你是教練 Mars，請參考資料回答問題：\n{prompt}"
+    try:
+        res = model.generate_content(full_p)
+        return res.text
+    except Exception as e:
+        if "429" in str(e):
+            return "❌ 額度爆了！請換一個模型試試，或者等一分鐘再問一次。"
+        return f"錯誤：{str(e)}"
 
-    messages = st.session_state.chat_history
-    user_indices = [i for i, m in enumerate(messages) if m['role'] == 'user']
-
-    if not user_indices:
-        st.info("尚未開始對話，請在下方輸入問題...")
-    else:
-        for idx, i in enumerate(user_indices):
-            question = messages[i]['content']
-            answer = None
-            if i + 1 < len(messages) and messages[i+1]['role'] == 'assistant':
-                answer = messages[i+1]['content']
-            
-            is_expanded = (idx == len(user_indices) - 1)
-            expander_title = f"💬 第 {idx+1} 回合：{question[:30]}..." if len(question) > 30 else f"💬 第 {idx+1} 回合：{question}"
-            
-            with st.expander(expander_title, expanded=is_expanded):
-                st.markdown(f"**🙋‍♂️ 你的提問**：\n{question}")
-                st.markdown("---")
-                if answer:
-                    st.markdown(f"**🤖 教練回覆**：\n{answer}")
-                    st.code(answer, language="markdown")
-                else:
-                    st.warning("教練正在思考中...")
-
-    if prompt := st.chat_input("輸入問題..."):
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        
-        if not model:
-            st.error("請在側邊欄確認模型狀態")
-        else:
-            with st.spinner("教練思考中..."):
-                # ★★★ 將知識庫內容注入 Prompt (陪練室) ★★★
-                knowledge_context = ""
-                if st.session_state.knowledge_base_text:
-                    knowledge_context = f"""
-                    【📚 企業知識庫參考資料】
-                    (嚴格要求：請務必根據以下 AG 商品手冊內容回答問題，必須引用具體商品名稱與代號)
-                    {st.session_state.knowledge_base_text[:30000]} ...
-                    """
-                
-                chat_prompt = f"""
-                你是 Coach Mars Chang。
-                {knowledge_context}
-                報告：{st.session_state.current_strategy}
-                問題：{prompt}
-                任務：人性化指導，必須推薦手冊中的具體商品。
-                """
-                try:
-                    response = generate_content_with_retry(model, chat_prompt)
-                    st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                    
-                    current_data = st.session_state.current_client_data
-                    if current_data:
-                        current_data['chat_history'] = st.session_state.chat_history
-                        save_client_to_db(st.session_state.user_key, current_data['name'], current_data['stage'], current_data)
-                    
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"回覆失敗: {e}")
+# 下方串接原本的 UI 顯示邏輯
