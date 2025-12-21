@@ -22,11 +22,7 @@ except ImportError:
 # --- 3. 🎨 風格設定 ---
 st.markdown("""
 <style>
-    :root {
-        --bg-main: #001222;
-        --text-orange: #ff9933;
-        --text-body: #e0e0e0;
-    }
+    :root { --bg-main: #001222; --text-orange: #ff9933; --text-body: #e0e0e0; }
     .stApp { background-color: var(--bg-main); }
     
     /* 輸入框優化 */
@@ -127,6 +123,7 @@ def load_kb():
     count = 0
     debug_log = []
     
+    # 1. 讀取 TXT (UTF-8)
     txt_files = [f for f in os.listdir('.') if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
@@ -138,6 +135,7 @@ def load_kb():
         except Exception as e:
             debug_log.append(f"❌ TXT 失敗 {f}: {e}")
 
+    # 2. 讀取 PDF (透過 pdfplumber)
     if pdf_tool_ready:
         pdf_files = [f for f in os.listdir('.') if f.lower().endswith('.pdf')]
         for f in pdf_files:
@@ -167,14 +165,30 @@ def calculate_life_path_number(birth_text):
     while total > 9: total = sum(int(digit) for digit in str(total))
     return total
 
+# --- ★★★ 修復核心：API 生成函數 (含安全設定與錯誤處理) ★★★ ---
 def generate_with_retry(model, prompt):
+    # 設定安全過濾器為「不阻擋」，防止 NoneType 錯誤
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+    
     for _ in range(3):
-        try: return model.generate_content(prompt)
+        try:
+            response = model.generate_content(prompt, safety_settings=safety_settings)
+            if response.text: # 確保有文字才回傳
+                return response
         except Exception as e:
-            if "429" in str(e): time.sleep(5)
-            else: raise e
+            if "429" in str(e): 
+                time.sleep(5)
+            else: 
+                # 若發生嚴重錯誤，直接拋出讓主程式知道
+                raise e
+    raise Exception("API 重試失敗，請稍後再試")
 
-# --- 8. 側邊欄 (設定區回歸，但只顯示模型選擇) ---
+# --- 8. 側邊欄 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
     ukey_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, type="password")
@@ -231,8 +245,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # --- ★★★ 模型設定區 (顯示選擇) ★★★ ---
-    # 自動連線 API Key
+    # --- ★★★ 模型設定區 (篩選您指定的模型) ★★★ ---
     api_key = ""
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -244,21 +257,27 @@ with st.sidebar:
     if api_key:
         genai.configure(api_key=api_key)
         try:
-            # 取得模型清單
+            # 取得所有可用模型
             all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             
-            # ★★★ 篩選邏輯：只留 Gemini 1.5 和 2.0 (排除舊版和 Gemma) ★★★
-            filtered_models = [m for m in all_models if "gemini-1.5" in m or "gemini-2.0" in m]
+            # ★★★ 核心修改：只篩選包含 flash 或 gemma 的模型 ★★★
+            target_keywords = ['flash', 'gemma']
+            filtered_models = []
+            
+            for m in all_models:
+                # 只要模型名稱包含 flash 或 gemma 就留下來
+                if any(k in m.lower() for k in target_keywords):
+                    filtered_models.append(m)
             
             # 排序：Flash 優先
-            filtered_models.sort(key=lambda x: "flash" not in x)
+            filtered_models.sort(key=lambda x: "flash" not in x.lower())
             
-            if not filtered_models: # 防呆，萬一沒抓到新版，就回退顯示所有 gemini
-                filtered_models = [m for m in all_models if "gemini" in m]
+            if not filtered_models: # 防呆
+                filtered_models = [m for m in all_models]
 
             st.markdown("### 🤖 模型選擇")
             selected_model_name = st.selectbox(
-                "請選擇 AI 大腦 (推薦 Flash)", 
+                "請選擇 AI 大腦 (Flash 或 Gemma)", 
                 filtered_models, 
                 index=0
             )
@@ -295,6 +314,7 @@ with st.form("client_form"):
     with c6: job = st.text_input("職業 / 職位", value=data.get("job", ""))
     with c7: interests = st.text_input("興趣 / 休閒", value=data.get("interests", ""))
 
+    # 既有保障收合
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點與分析</h3>", unsafe_allow_html=True)
     with st.expander("➕ 詳細保障額度 (點擊展開填寫)", expanded=True):
         g1, g2, g3 = st.columns(3)
@@ -317,7 +337,7 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄 (痛點)", value=data.get("quotes", ""), height=68)
-    with c9: target_product = st.text_area("🎯 銷售目標 (例: 醫療險、失能險)", value=data.get("target_product", ""), height=68)
+    with c9: target_product = st.text_area("🎯 銷售目標 (AI 將優先建議此項目)", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
@@ -359,7 +379,6 @@ if save_btn or analyze_btn:
                 【保障盤點】日額:{cov_daily}, 實支:{cov_med_reim}, 手術:{cov_surg}, 意外:{cov_acc_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
                 """
                 
-                # ★★★ 修正 Prompt：強制優先銷售目標商品 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」。
                 
@@ -383,7 +402,7 @@ if save_btn or analyze_btn:
                 4. **[補充建議：其他缺口]** (壽險或其他非目標險種請放這裡)
                 """
                 
-                with st.spinner("教練 Mars 正在擬定戰略..."):
+                with st.spinner("教練 Mars 正在分析..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -422,7 +441,8 @@ if st.session_state.current_strategy:
         if not model: st.error("請確認連線")
         else:
             with st.spinner("教練思考中..."):
-                limit = 35000
+                is_flash = "flash" in model.model_name.lower() or "1.5" in model.model_name.lower()
+                limit = 35000 if is_flash else 5000
                 kb_context = st.session_state.kb_text[:limit]
                 
                 chat_prompt = f"""
