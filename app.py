@@ -113,26 +113,26 @@ if "kb_text" not in st.session_state: st.session_state.kb_text = ""
 if "kb_count" not in st.session_state: st.session_state.kb_count = 0
 if "kb_debug" not in st.session_state: st.session_state.kb_debug = []
 
-# --- 6. 核心：知識庫讀取 (強力掃描版) ---
+# --- 6. 核心：知識庫讀取 (支援 xlsm / xlsx / txt / pdf) ---
 def load_kb():
     full_text = ""
     count = 0
     debug_log = []
     
-    # 列出所有檔案供偵錯
+    # 列出所有檔案
     all_files = os.listdir('.')
-    debug_log.append(f"📂 系統目錄下所有檔案: {all_files}")
+    debug_log.append(f"📂 系統目錄檔案: {all_files}")
 
-    # 1. 讀取 Excel (最優先)
-    xlsx_files = [f for f in all_files if f.lower().endswith('.xlsx')]
-    if not xlsx_files:
-        debug_log.append("⚠️ 警告：未發現任何 .xlsx 檔案，請確認已上傳至 GitHub")
+    # 1. 讀取 Excel (支援 .xlsx 和 .xlsm)
+    excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     
-    for f in xlsx_files:
+    if not excel_files:
+        debug_log.append("⚠️ 未發現 Excel (.xlsx/.xlsm) 檔案")
+    
+    for f in excel_files:
         try:
-            # 強制轉字串讀取
+            # openpyxl 可以讀取 xlsm 的資料部分
             df = pd.read_excel(f, engine='openpyxl')
-            # 轉成 CSV 格式讓 AI 讀
             csv_text = df.to_csv(index=False)
             full_text += f"\n=== Excel資料庫 ({f}) ===\n{csv_text}\n"
             count += 1
@@ -183,7 +183,6 @@ def calculate_life_path_number(birth_text):
     return total
 
 def generate_with_retry(model, prompt):
-    # 安全設定全開
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -241,7 +240,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 知識庫診斷 (這裡會顯示 Excel 是否被抓到)
+    # 知識庫診斷
     st.markdown("### 📚 知識庫 (Excel/TXT/PDF)")
     if st.session_state.kb_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.kb_count} 份文件")
@@ -321,8 +320,8 @@ with st.form("client_form"):
         with g2:
             cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""))
             cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""))
-            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""))
-            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""))
+            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
+            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
         with g3:
             cov_ltc = st.text_input("長照月給付", value=data.get("cov_ltc", ""))
             cov_dis = st.text_input("失能月給付", value=data.get("cov_dis", ""))
