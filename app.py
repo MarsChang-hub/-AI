@@ -6,7 +6,8 @@ import json
 import pandas as pd
 import re
 import time
-# from PyPDF2 import PdfReader # 暫時註解掉，因為前台不需上傳，若後台需要讀取可再開啟
+import os
+from PyPDF2 import PdfReader # 必須確保 requirements.txt 有加入 PyPDF2
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
@@ -65,9 +66,9 @@ st.markdown("""
         border: none;
     }
 
-    /* --- ★★★ 報告框 (Report Box) 暴力修正區 ★★★ --- */
+    /* --- 報告框 (Report Box) 視覺暴力修正 --- */
     .report-box {
-        background-color: #ffffff !important; /* 絕對白底 */
+        background-color: #ffffff !important;
         padding: 40px;
         border-radius: 8px;
         border-top: 8px solid var(--text-orange);
@@ -77,60 +78,39 @@ st.markdown("""
     }
     
     /* 強制指定報告框內所有文字為「深海藍」 */
-    .report-box p, 
-    .report-box span, 
-    .report-box li, 
-    .report-box div, 
-    .report-box b,
-    .report-box em,
-    .report-box h4, 
-    .report-box h5, 
-    .report-box h6 {
-        color: #003366 !important; /* 深藍色 */
+    .report-box p, .report-box span, .report-box li, .report-box div, 
+    .report-box b, .report-box em, .report-box h4, .report-box h5, .report-box h6 {
+        color: #003366 !important;
     }
 
     /* 標題與重點 */
     .report-box h1, .report-box h2 {
-        color: #002244 !important; /* 標題用更深的午夜藍 */
+        color: #002244 !important;
         border-bottom: 2px solid #ff9933;
         padding-bottom: 10px;
         margin-top: 30px;
         font-weight: 800;
     }
     .report-box h3 { 
-        color: #cc4400 !important; /* 副標維持橘色 */
+        color: #cc4400 !important;
         font-weight: 700; 
         margin-top: 20px;
     }
-    
-    /* 粗體字螢光筆效果 */
     .report-box strong { 
-        color: #002244 !important; /* 粗體深藍 */
+        color: #002244 !important;
         background-color: #fff5e6 !important; 
         padding: 0 4px; 
     }
 
     /* 表格設計 */
-    .report-box table {
-        width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px;
-        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .report-box th {
-        background-color: #003366 !important; /* 表頭改為深藍底 */
-        color: #ffffff !important; /* 表頭維持白字 */
-        padding: 15px; text-align: left;
-    }
+    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .report-box th { background-color: #003366 !important; color: #ffffff !important; padding: 15px; text-align: left; }
     .report-box th * { color: #ffffff !important; }
-    
-    .report-box td {
-        padding: 12px 15px; border-bottom: 1px solid #eeeeee; 
-        color: #003366 !important; /* 表格內容深藍字 */
-    }
+    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #003366 !important; }
     .report-box tr:nth-child(even) { background-color: #f0f8ff; } 
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* --- ★★★ 教練陪練室獨立對話框 (Expander) 修正 ★★★ --- */
-    
+    /* --- 教練陪練室獨立對話框 (Expander) 修正 --- */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -139,8 +119,6 @@ st.markdown("""
         font-weight: bold;
         margin-top: 10px;
     }
-    
-    /* 內容區塊：強制深色背景 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
@@ -148,18 +126,11 @@ st.markdown("""
         background-color: #0d1b2a !important; 
         padding: 15px;
     }
-    
-    /* 強制指定對話框內文字為「極亮藍白」 */
-    .streamlit-expanderContent p, 
-    .streamlit-expanderContent span, 
-    .streamlit-expanderContent li, 
-    .streamlit-expanderContent div,
-    .streamlit-expanderContent strong,
-    .streamlit-expanderContent code {
+    .streamlit-expanderContent p, .streamlit-expanderContent span, .streamlit-expanderContent li, 
+    .streamlit-expanderContent div, .streamlit-expanderContent strong, .streamlit-expanderContent code {
         color: #e6f7ff !important; 
     }
     
-    /* 隱藏漢堡選單，保留左上箭頭 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
@@ -232,9 +203,11 @@ if "user_key" not in st.session_state:
     st.session_state.user_key = ""
 if "active_model_name" not in st.session_state:
     st.session_state.active_model_name = "尚未連線"
-# 保留變數但移除前台入口
+# 知識庫
 if "knowledge_base_text" not in st.session_state:
     st.session_state.knowledge_base_text = ""
+if "knowledge_files_count" not in st.session_state:
+    st.session_state.knowledge_files_count = 0
 
 # --- 工具函數 ---
 def calculate_life_path_number(birth_text):
@@ -246,23 +219,52 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
+# --- ★★★ 自動讀取後台 PDF 函數 ★★★ ---
+def load_local_knowledge_base():
+    """自動掃描當前目錄下的 PDF 檔案並載入"""
+    text_content = ""
+    file_count = 0
+    
+    try:
+        # 取得當前目錄下所有檔案
+        files = [f for f in os.listdir('.') if f.endswith('.pdf')]
+        
+        for file in files:
+            try:
+                reader = PdfReader(file)
+                file_text = ""
+                for page in reader.pages:
+                    file_text += page.extract_text() + "\n"
+                
+                text_content += f"\n--- 文件開始: {file} ---\n{file_text}\n--- 文件結束: {file} ---\n"
+                file_count += 1
+                # print(f"Loaded: {file}") # 後台除錯用
+            except Exception as e:
+                pass # 忽略讀取錯誤的檔案
+        
+        return text_content, file_count
+    except Exception as e:
+        return "", 0
+
+# 程式啟動時自動載入一次 (若尚未載入)
+if st.session_state.knowledge_files_count == 0:
+    kb_text, kb_count = load_local_knowledge_base()
+    if kb_count > 0:
+        st.session_state.knowledge_base_text = kb_text
+        st.session_state.knowledge_files_count = kb_count
+
 # --- 核心：過濾模型邏輯 ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 使用者指定的優先關鍵字
         priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
-        
         filtered_list = []
         for key in priority_keywords:
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
-            
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
-            
         filtered_list = list(set(filtered_list))
         filtered_list.sort()
         return filtered_list
@@ -290,7 +292,7 @@ def generate_content_with_retry(model_instance, prompt):
             else:
                 raise e 
 
-# --- 側邊欄配置 (移除知識庫上傳區，保留設定在最下方) ---
+# --- 側邊欄配置 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單管理")
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
@@ -332,10 +334,14 @@ with st.sidebar:
     else:
         st.warning("請輸入金鑰以存取名單")
 
-    # 分隔線
     st.markdown("---")
     
-    # 系統設定 (保留綠燈與額度提示)
+    # ★★★ 知識庫狀態顯示 (取代上傳按鈕) ★★★
+    if st.session_state.knowledge_files_count > 0:
+        st.success(f"📚 知識庫：已掛載 {st.session_state.knowledge_files_count} 份手冊")
+    else:
+        st.info("ℹ️ 知識庫：未偵測到 PDF 文件 (請將手冊上傳至後台)")
+
     st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -507,22 +513,24 @@ if save_btn or analyze_btn:
                     """
                 output_requirements += f"""
                 3. **[戰略目標 ({s_stage})]**
-                4. **[建議方向一]**
-                5. **[建議方向二]**
+                4. **[建議方向一]** (必須引用知識庫中的具體商品)
+                5. **[建議方向二]** (必須引用知識庫中的具體商品)
                 """
                 if show_gap_analysis:
                     output_requirements += """
                 6. **[⚠️ 缺口風險與嚴重性分析]** (集中說明未達標項目的後果)
                     """
                 
-                # ★★★ 將知識庫內容注入 Prompt (若有設定的話) ★★★
+                # ★★★ 將知識庫內容注入 Prompt (分析報告) ★★★
                 knowledge_context = ""
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
                     【📚 企業知識庫參考資料】
-                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
-                    {st.session_state.knowledge_base_text[:20000]} ...
+                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容，提供具體的商品名稱與規則建議)
+                    {st.session_state.knowledge_base_text[:30000]} ... (內容過長截斷)
                     """
+                else:
+                    knowledge_context = "(注意：目前尚未掛載知識庫，請使用一般保險知識回答)"
 
                 final_prompt = f"""
                 你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」與「Mars Chang 保障標準」。
@@ -604,8 +612,8 @@ if st.session_state.current_strategy:
                 if st.session_state.knowledge_base_text:
                     knowledge_context = f"""
                     【📚 企業知識庫參考資料】
-                    (以下內容來自公司商品手冊與業務手冊，請優先參考此資料回答)
-                    {st.session_state.knowledge_base_text[:20000]} ...
+                    (嚴格要求：請務必根據以下公司商品手冊與業務手冊的內容回答問題，若無相關資訊則說明「手冊中未提及」)
+                    {st.session_state.knowledge_base_text[:30000]} ...
                     """
                 
                 chat_prompt = f"""
