@@ -10,7 +10,7 @@ import time
 # --- 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 🎨 風格設定 (深藍專業版 + 介面按鈕修復) ---
+# --- 🎨 風格設定 (深藍專業版 + 手機閱讀優化) ---
 st.markdown("""
 <style>
     :root {
@@ -100,7 +100,9 @@ st.markdown("""
     .report-box tr:nth-child(even) { background-color: #f8f9fa; }
     .report-box tr:hover { background-color: #fff5e6; transition: background-color 0.2s; }
     
-    /* 教練陪練室獨立對話框 */
+    /* --- ★★★ 教練陪練室獨立對話框 (手機版修復核心) ★★★ --- */
+    
+    /* 1. 標題列：保持深色半透明，文字橘色 */
     .streamlit-expanderHeader {
         background-color: rgba(255, 255, 255, 0.1) !important;
         color: #ff9933 !important;
@@ -109,18 +111,34 @@ st.markdown("""
         font-weight: bold;
         margin-top: 10px;
     }
+    
+    /* 2. 內容區塊：強制深色背景，防止手機版變白底 */
     .streamlit-expanderContent {
         border: 1px solid rgba(255, 153, 51, 0.2);
         border-top: none;
         border-radius: 0 0 8px 8px;
-        background-color: rgba(0, 0, 0, 0.2);
+        background-color: #0d1b2a !important; /* 使用不透明的深藍色 */
         padding: 15px;
     }
     
-    /* ★★★ 關鍵修復：隱藏漢堡選單，但保留左上角展開箭頭 ★★★ */
+    /* 3. 強制文字顏色：確保所有文字都是亮白色，覆蓋手機預設 */
+    .streamlit-expanderContent p, 
+    .streamlit-expanderContent li, 
+    .streamlit-expanderContent span, 
+    .streamlit-expanderContent div {
+        color: #ffffff !important;
+    }
+    
+    /* 4. Chat Message 泡泡優化 */
+    div[data-testid="stChatMessage"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 10px;
+    }
+    
+    /* 隱藏漢堡選單，保留箭頭 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* header {visibility: hidden;}  <-- 這行刪除，就能讓箭頭回來了 */
     
     .mars-watermark {
         position: fixed; top: 15px; right: 25px;
@@ -202,39 +220,28 @@ def calculate_life_path_number(birth_text):
         total = sum(int(digit) for digit in str(total))
     return total
 
-# --- ★★★ 核心：過濾模型邏輯 (Gemma 優先) ★★★ ---
+# --- 核心：過濾模型邏輯 ---
 def get_filtered_models(api_key):
     genai.configure(api_key=api_key)
     try:
-        # 取得所有可用模型
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 根據您的需求定義優先關鍵字
         priority_keywords = ['gemma-3-1b', 'gemma-3-27b', 'gemma-3-4b', 'gemini-1.5-flash', 'gemini-1.5-pro']
-        
         filtered_list = []
-        # 1. 先找優先清單裡的
         for key in priority_keywords:
             matches = [m for m in all_models if key in m]
             filtered_list.extend(matches)
-            
-        # 2. 如果真的都沒找到 (Gemma 3 可能尚未開放)，放入保底的 Flash 1.5
         if not filtered_list:
             filtered_list = [m for m in all_models if 'gemini-1.5-flash' in m]
-            
-        # 3. 確保不重複並排序
         filtered_list = list(set(filtered_list))
         filtered_list.sort()
-        
         return filtered_list
     except:
         return []
 
-# --- ★★★ API 自動重試函數 ★★★ ---
+# --- API 自動重試函數 ---
 def generate_content_with_retry(model_instance, prompt):
     max_retries = 3
     base_delay = 5 
-    
     for attempt in range(max_retries):
         try:
             return model_instance.generate_content(prompt)
@@ -252,16 +259,13 @@ def generate_content_with_retry(model_instance, prompt):
             else:
                 raise e 
 
-# --- ★★★ 側邊欄配置 (名單在上，設定在下) ★★★ ---
+# --- 側邊欄配置 ---
 with st.sidebar:
-    # 1. 上方：客戶名單管理 (最優先)
     st.markdown("### 🗂️ 客戶名單管理")
     user_key_input = st.text_input("🔑 請輸入您的專屬金鑰", value=st.session_state.user_key, placeholder="例如：您的手機號碼", type="password")
     
     if user_key_input:
         st.session_state.user_key = user_key_input
-        # 名單載入成功提示移掉，保持版面乾淨，改為顯示數量
-        
         col_new, col_del = st.columns([1, 1])
         with col_new:
             if st.button("➕ 新增客戶"):
@@ -269,7 +273,6 @@ with st.sidebar:
                 st.session_state.current_strategy = None
                 st.session_state.chat_history = []
                 st.rerun()
-        
         if st.session_state.current_client_data.get("name"):
             with col_del:
                 if st.button("🗑️ 刪除個案"):
@@ -282,7 +285,6 @@ with st.sidebar:
                     st.rerun()
 
         clients_df = get_clients_by_key(user_key_input)
-        
         if not clients_df.empty:
             stages = ["S1", "S2", "S3", "S4", "S5", "S6"]
             for stage_prefix in stages:
@@ -299,12 +301,8 @@ with st.sidebar:
     else:
         st.warning("請輸入金鑰以存取名單")
 
-    # 2. 分隔線 (將名單與設定分開)
     st.markdown("---")
-
-    # 3. 下方：系統設定 (包含 API Key 和 模型選擇)
     st.markdown(f"<h3 style='border:none;'>⚙️ 系統設定</h3>", unsafe_allow_html=True)
-    
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
     else:
@@ -314,9 +312,7 @@ with st.sidebar:
     if api_key:
         try:
             available_models = get_filtered_models(api_key)
-            
             if available_models:
-                # 選擇器：附帶紅色警語
                 selected_model_name = st.selectbox(
                     "🤖 選擇 AI 模型 (若額度不足請切換)", 
                     available_models, 
@@ -324,15 +320,12 @@ with st.sidebar:
                 )
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(selected_model_name)
-                
-                # 綠燈狀態
                 st.success(f"🟢 系統狀態：已連線")
                 st.caption(f"使用中: {selected_model_name}")
             else:
                 st.warning("⚠️ 無法取得模型清單，使用預設值")
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 st.success(f"🟢 系統狀態：強制連線 (1.5 Flash)")
-                
         except Exception as e:
             st.error(f"連線錯誤: {e}")
 
@@ -509,7 +502,6 @@ if save_btn or analyze_btn:
                 
                 with st.spinner("教練 Mars 正在分析..."):
                     try:
-                        # 使用自動重試函數
                         response = generate_content_with_retry(model, final_prompt)
                         st.session_state.current_strategy = response.text
                         st.session_state.chat_history = []
