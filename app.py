@@ -52,6 +52,9 @@ st.markdown("""
     .report-box th * { color: #ffffff !important; }
     .report-box td { padding: 12px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; text-align: center; }
     .report-box tr:nth-child(even) { background-color: #f2f3f4; } 
+    
+    /* 側邊欄除錯區 */
+    .debug-area { font-size: 12px; color: #aaa; background: #111; padding: 10px; border-radius: 5px; }
 
     .mars-watermark {
         position: fixed; top: 15px; right: 25px; color: rgba(255, 153, 51, 0.9);
@@ -194,7 +197,7 @@ def generate_with_retry(model, prompt):
             else: raise e
     raise Exception("API Error")
 
-# --- 8. 側邊欄 ---
+# --- 8. 側邊欄 (新增透視鏡) ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單")
     ukey_input = st.text_input("🔑 專屬金鑰", value=st.session_state.user_key, type="password")
@@ -259,6 +262,14 @@ with st.sidebar:
             model = genai.GenerativeModel(selected_model_name)
             st.success(f"🟢 {selected_model_name}")
         except: st.error("連線失敗")
+
+    # --- ★★★ 新增：PDF 內容透視鏡 (除錯用) ★★★ ---
+    if "debug_pdf_text" in st.session_state and st.session_state.debug_pdf_text:
+        st.markdown("---")
+        with st.expander("🔍 PDF 內容透視鏡 (Debug)", expanded=True):
+            st.caption("這是 AI 讀到的建議書原文，請確認文字是否正常：")
+            st.text_area("raw text", st.session_state.debug_pdf_text, height=200, label_visibility="collapsed")
+
 
 # --- 9. 主畫面 ---
 col_t1, col_t2, col_t3 = st.columns([1, 6, 1])
@@ -325,12 +336,15 @@ if save_btn or analyze_btn:
     elif not client_name: st.error("請輸入姓名")
     else:
         proposal_text = ""
-        # 讀取建議書 (防呆機制)
+        # 讀取建議書
         if uploaded_proposal and pdf_tool_ready:
             try:
                 with pdfplumber.open(uploaded_proposal) as pdf:
                     proposal_text = "".join([p.extract_text() or "" for p in pdf.pages])
             except: pass
+        
+        # 儲存到 session 以供側邊欄檢視
+        st.session_state.debug_pdf_text = proposal_text
         
         # UI 提示
         if uploaded_proposal and not proposal_text:
@@ -372,9 +386,9 @@ if save_btn or analyze_btn:
 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
+                    proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
 
-                # ★★★ 關鍵 Prompt 修改：防呆機制、絕對金額過濾、保費排除 ★★★
+                # ★★★ 關鍵 Prompt 修改：防火牆與防呆 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
@@ -382,16 +396,19 @@ if save_btn or analyze_btn:
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
                 2. **去重複化**：不要重複贅述。
-                3. **嚴格數據來源**：[現有保障] 來自表單，[建議書補強] 來自上傳 PDF，若無則填「無」。
+                3. **嚴格數據來源 (Source Firewall)**：
+                   - [現有保障] 僅來自表單。
+                   - [建議書補強] 僅來自上方提供的【上傳建議書內容】。
+                   - ***絕對禁止*** 使用 Excel/手冊的資料來填補建議書缺口。如果 PDF 沒寫，就填「無」。
                 
                 【表格數據計算與防呆 (***Strict & Sanity Check***)】
-                請仔細辨別 PDF 中的「保費(Premium)」與「保額(Coverage)」，**嚴禁抓錯**：
-                1. **日額醫療**：僅抓取「住院日額(元/日)」。例如 (97)KHLR 或 GNHRL。*若看到幾百元的數字，請再次確認是否為保費，若是則丟棄。*
+                請仔細辨別 PDF 中的數字，**嚴禁抓錯**：
+                1. **日額醫療**：僅抓取「住院日額(元/日)」。例如 (97)KHLR 或 GNHRL。
                 2. **醫療實支 (新增)**：請抓取「住院醫療費用限額」。例如建議書中的「心康泰 (MAHUGA)」額度應為 30萬。
                 3. **手術**：若為倍數給付，請計算出「最高理賠金額」。
                 4. **癌症**：請抓取「初次罹患癌症-重度」的保險金。例如「好活力 (MAJIXA)」額度應為 100萬。
                 5. **重大傷病**：請抓取「重大傷病(非慢性精神疾病)」的保險金。例如「醫卡健康 (MAJIEA)」額度應為 50萬。
-                6. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。***防呆警示：若此數字小於 10,000 元，絕對是抓到保費了，請重新尋找 3萬/5萬/10萬 的數字。***
+                6. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。***防呆警示：若數字小於 10,000，絕對是抓到保費了，請忽略該數字。***
 
                 【其他規則】
                 - **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
@@ -403,7 +420,7 @@ if save_btn or analyze_btn:
                 現有保障：{current_coverage}
                 
                 {proposal_context}
-                【參考資料庫】: 
+                【參考資料庫 (僅供查閱代號，不可用於無中生有)】: 
                 {kb_context}
 
                 【輸出架構】
