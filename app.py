@@ -35,23 +35,26 @@ st.markdown("""
     
     section[data-testid="stSidebar"] { background-color: #001a33; border-right: 1px solid #ff9933; }
     
-    /* 報告框 */
+    /* 報告框：更溫暖的配色 */
     .report-box {
         background-color: #ffffff !important; padding: 40px; border-radius: 8px;
         border-top: 8px solid var(--text-orange); margin-top: 20px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
     }
-    .report-box p, .report-box li, .report-box div, .report-box span { color: #003366 !important; }
-    .report-box h1, .report-box h2 { color: #002244 !important; border-bottom: 2px solid #ff9933; }
-    .report-box h3 { color: #cc4400 !important; font-weight: 700; margin-top: 20px;}
-    .report-box strong { color: #002244 !important; background-color: #fff5e6 !important; padding: 0 4px; }
+    .report-box p, .report-box li, .report-box div, .report-box span { 
+        color: #2c3e50 !important; /* 深灰藍，比較有質感 */
+        line-height: 1.6;
+    }
+    .report-box h1, .report-box h2 { color: #d35400 !important; border-bottom: 2px solid #ff9933; margin-top: 30px; }
+    .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
+    .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; }
-    .report-box th { background-color: #003366 !important; color: #ffffff !important; padding: 15px; }
+    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 15px; }
     .report-box th * { color: #ffffff !important; }
-    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #003366 !important; }
-    .report-box tr:nth-child(even) { background-color: #f0f8ff; } 
+    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; }
+    .report-box tr:nth-child(even) { background-color: #f2f3f4; } 
 
     .mars-watermark {
         position: fixed; top: 15px; right: 25px; color: rgba(255, 153, 51, 0.9);
@@ -113,40 +116,34 @@ if "kb_text" not in st.session_state: st.session_state.kb_text = ""
 if "kb_count" not in st.session_state: st.session_state.kb_count = 0
 if "kb_debug" not in st.session_state: st.session_state.kb_debug = []
 
-# --- 6. 核心：知識庫讀取 (支援 xlsm / xlsx / txt / pdf) ---
+# --- 6. 核心：知識庫讀取 (支援 xlsx/xlsm/txt/pdf) ---
 def load_kb():
     full_text = ""
     count = 0
     debug_log = []
     
-    # 列出所有檔案
     all_files = os.listdir('.')
-    debug_log.append(f"📂 系統目錄檔案: {all_files}")
+    debug_log.append(f"📂 目錄檔案: {all_files}")
 
-    # 1. 讀取 Excel (支援 .xlsx 和 .xlsm)
+    # 1. 讀取 Excel (xlsm/xlsx)
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
-    
-    if not excel_files:
-        debug_log.append("⚠️ 未發現 Excel (.xlsx/.xlsm) 檔案")
-    
     for f in excel_files:
         try:
-            # openpyxl 可以讀取 xlsm 的資料部分
             df = pd.read_excel(f, engine='openpyxl')
             csv_text = df.to_csv(index=False)
-            full_text += f"\n=== Excel資料庫 ({f}) ===\n{csv_text}\n"
+            full_text += f"\n=== 資料庫 ({f}) ===\n{csv_text}\n"
             count += 1
-            debug_log.append(f"✅ Excel 載入成功: {f}")
+            debug_log.append(f"✅ Excel 載入: {f}")
         except Exception as e:
-            debug_log.append(f"❌ Excel 讀取失敗 {f}: {e}")
+            debug_log.append(f"❌ Excel 失敗 {f}: {e}")
 
-    # 2. 讀取 TXT
+    # 2. 讀取 TXT (UTF-8)
     txt_files = [f for f in all_files if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
         try:
             with open(f, "r", encoding="utf-8") as file:
-                full_text += f"\n=== TXT手冊: {f} ===\n{file.read()}\n"
+                full_text += f"\n=== 手冊資料 ({f}) ===\n{file.read()}\n"
                 count += 1
                 debug_log.append(f"✅ TXT 載入: {f}")
         except Exception as e:
@@ -162,7 +159,7 @@ def load_kb():
                     for page in pdf.pages:
                         extracted = page.extract_text()
                         if extracted: text += extracted + "\n"
-                    full_text += f"\n=== PDF手冊: {f} ===\n{text}\n"
+                    full_text += f"\n=== PDF資料 ({f}) ===\n{text}\n"
                     count += 1
                     debug_log.append(f"✅ PDF 載入: {f}")
             except Exception as e:
@@ -241,13 +238,13 @@ with st.sidebar:
     st.markdown("---")
     
     # 知識庫診斷
-    st.markdown("### 📚 知識庫 (Excel/TXT/PDF)")
+    st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
         st.success(f"✅ 已掛載 {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 未偵測到文件")
     
-    with st.expander("🔍 檔案狀態 (點我看清單)"):
+    with st.expander("🔍 檔案狀態"):
         for m in st.session_state.kb_debug: st.write(m)
         if st.button("🔄 重新掃描"):
             st.session_state.kb_count = 0
@@ -271,15 +268,12 @@ with st.sidebar:
             target_keywords = ['flash', 'gemma']
             filtered_models = [m for m in all_models if any(k in m.lower() for k in target_keywords)]
             filtered_models.sort(key=lambda x: "flash" not in x.lower())
-            
             if not filtered_models: filtered_models = all_models
 
             st.markdown("### 🤖 模型選擇")
             selected_model_name = st.selectbox("請選擇 AI 大腦", filtered_models, index=0)
-            
             model = genai.GenerativeModel(selected_model_name)
             st.success(f"🟢 已連線")
-
         except Exception as e:
             st.error(f"連線失敗: {e}")
 
@@ -320,8 +314,8 @@ with st.form("client_form"):
         with g2:
             cov_cancer = st.text_input("癌症一次金 (萬)", value=data.get("cov_cancer", ""))
             cov_major = st.text_input("重大傷病 (萬)", value=data.get("cov_major", ""))
-            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""), placeholder="標準:3000")
-            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""), placeholder="標準:3000")
+            cov_radio = st.text_input("放療/次", value=data.get("cov_radio", ""))
+            cov_chemo = st.text_input("化療/次", value=data.get("cov_chemo", ""))
         with g3:
             cov_ltc = st.text_input("長照月給付", value=data.get("cov_ltc", ""))
             cov_dis = st.text_input("失能月給付", value=data.get("cov_dis", ""))
@@ -331,7 +325,7 @@ with st.form("client_form"):
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄 (痛點)", value=data.get("quotes", ""), height=68)
-    with c9: target_product = st.text_area("🎯 銷售目標 (請輸入中文簡稱，如: 新樂活)", value=data.get("target_product", ""), height=68)
+    with c9: target_product = st.text_area("🎯 銷售目標 (AI 將優先建議此項目)", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
@@ -372,36 +366,40 @@ if save_btn or analyze_btn:
                 【保障盤點】日額:{cov_daily}, 實支:{cov_med_reim}, 手術:{cov_surg}, 意外:{cov_acc_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
                 """
                 
-                # ★★★ 核心 Prompt：強制對照中文名詞與代號 ★★★
+                # ★★★ 核心Prompt：20年資深顧問、SPIN、NLP、禁談保費、禁談來源 ★★★
                 prompt = f"""
-                你是「教練 Coach Mars Chang」。嚴格遵守「顧問式銷售」。
-                
-                【任務一：銷售目標對應 (High Priority)】
-                請看【銷售目標】欄位："{target_product}"。
-                1. 請立刻搜尋下方的【Excel 資料庫】，尋找與 "{target_product}" 相符的商品名稱 (Fuzzy Match)。
-                2. **重要**：如果找到對應商品，請務必列出其 **[英文代號]** (例如：新樂活 -> GNHRL)。
-                3. 請直接引用 Excel 表格中的理賠項目與金額，作為推薦理由。
-                
-                【任務二：戰略建議】
-                1. **必須將「{target_product}」列為第一優先建議**。
-                2. 其他缺口（如壽險）請放在報告最後的「補充建議」，不要喧賓奪主。
+                【角色設定】
+                你是一位擁有20年經驗的頂尖保險顧問，深諳人性，擅長運用 NLP (神經語言學) 與客戶建立深層連結。
+                你的風格：感性優先、理性為輔。你不是在賣商品，而是在協助客戶解決家庭的擔憂。
+                你精通 SPIN 銷售法，擅長用情境問句引發客戶對風險的覺察。
+
+                【絕對規則 (Constraints)】
+                1. **嚴禁提及保費/價格**：即便資料庫有數據，也絕對不要在報告中顯示任何費用數字。
+                2. **隱藏資料來源**：請將知識內化，直接給出專業建議，絕對不要說「根據 Excel」或「依據手冊」。
+                3. **銷售目標優先**：請全力聚焦於推廣「{target_product}」。
+                4. **其他建議後置**：若有其他缺口(如壽險)，請放在最後稍微帶過即可。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
                 語錄："{quotes}"
                 現有保障：{detailed_coverage}
                 
-                【知識庫數據 (Excel/TXT)】:
+                【參考資料 (僅供內部邏輯參考)】:
                 {kb_context}
 
-                【輸出要求 (請使用白底深藍字風格 Markdown)】
-                1. **[客戶畫像與心理分析]**
-                2. **[戰略目標：攻下 {target_product} ({target_product}的英文代號)]** (引用 Excel 數據)
-                3. **[保障額度檢核表]**
-                4. **[補充建議：其他缺口]**
+                【輸出架構 (請用溫暖、專業、像在對話的語氣)】
+                1. **[💖 暖心開場]** (運用 NLP 技巧，呼應客戶語錄，先處理心情，再處理事情。展現同理心。)
+                
+                2. **[❓ SPIN 情境探索]** (針對 {target_product} 設計 3-4 個情境式問句。例如：「如果發生...對家庭會有什麼影響？」引發痛點。)
+                
+                3. **[🛡️ 顧問式解決方案]** (提出概念性的解法，說明 {target_product} 如何解決上述痛點。強調價值，不談價格。)
+                
+                4. **[📊 專屬規劃建議]** (在此處才引用商品名稱與理賠優勢。請列出中文商品名與英文代號。若 Excel 有理賠數據，請在此展示"給付內容"，但絕不能提保費。)
+                
+                5. **[💡 其他溫馨提醒]** (補充建議其他缺口，點到為止)
                 """
                 
-                with st.spinner("教練 Mars 正在查表對照..."):
+                with st.spinner("資深顧問 Mars 正在構思 SPIN 策略..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -444,11 +442,12 @@ if st.session_state.current_strategy:
                 kb_context = st.session_state.kb_text[:limit]
                 
                 chat_prompt = f"""
-                你是 Coach Mars Chang。
+                你是 Coach Mars Chang，一位 20 年資深保險顧問。
+                你的風格：SPIN 提問、NLP 感性溝通、絕對不提保費、不透露資料來源。
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：請針對「{target_product}」進行指導，並優先引用 Excel 英文代號與數據。
+                任務：請延續上述風格進行指導。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
