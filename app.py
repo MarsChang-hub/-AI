@@ -229,7 +229,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件")
+        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -325,7 +325,7 @@ if save_btn or analyze_btn:
     elif not client_name: st.error("請輸入姓名")
     else:
         proposal_text = ""
-        # 讀取建議書
+        # 讀取建議書 (防呆機制)
         if uploaded_proposal and pdf_tool_ready:
             try:
                 with pdfplumber.open(uploaded_proposal) as pdf:
@@ -372,33 +372,30 @@ if save_btn or analyze_btn:
 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
+                    proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
 
-                # ★★★ 核心 Prompt：精準數據抓取與計算邏輯 ★★★
+                # ★★★ 關鍵 Prompt 修改：防呆機制、絕對金額過濾、保費排除 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
                 【戰略最高指導原則】
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
-                2. **去重複化**：已在「情境探索」講過的觀點，不要在「專屬規劃」重複贅述。
-                3. **嚴格數據來源**：
-                   - [現有保障] 來自表單。
-                   - [建議書補強] 來自上傳 PDF，若無則填「無」，禁止腦補。
+                2. **去重複化**：不要重複贅述。
+                3. **嚴格數據來源**：[現有保障] 來自表單，[建議書補強] 來自上傳 PDF，若無則填「無」。
                 
-                【表格數據計算邏輯 (Strict Calculation Rules)】
-                請嚴格遵守以下計算方式填寫 [建議書補強(After)] 欄位，不可胡亂加總：
-                1. **日額醫療**：僅抓取「住院日額(元/日)」。
-                2. **醫療實支 (新增)**：請抓取「住院醫療費用限額」(雜費)。例如建議書中的「心康泰 (MAHUGA)」應為 30萬。
+                【表格數據計算與防呆 (***Strict & Sanity Check***)】
+                請仔細辨別 PDF 中的「保費(Premium)」與「保額(Coverage)」，**嚴禁抓錯**：
+                1. **日額醫療**：僅抓取「住院日額(元/日)」。例如 (97)KHLR 或 GNHRL。*若看到幾百元的數字，請再次確認是否為保費，若是則丟棄。*
+                2. **醫療實支 (新增)**：請抓取「住院醫療費用限額」。例如建議書中的「心康泰 (MAHUGA)」額度應為 30萬。
                 3. **手術**：若為倍數給付，請計算出「最高理賠金額」。
-                4. **癌症**：***關鍵修正*** 請抓取「初次罹患癌症-重度」的保險金。例如「好活力 (MAJIXA)」應為 100萬。嚴禁抓成保費或輕度癌症。
-                5. **重大傷病**：***關鍵修正*** 請抓取「重大傷病(非慢性精神疾病)」的保險金。例如「醫卡健康 (MAJIEA)」應為 50萬。嚴禁抓成保費。
-                6. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。格式範例：「5萬 (實支實付)」。
+                4. **癌症**：請抓取「初次罹患癌症-重度」的保險金。例如「好活力 (MAJIXA)」額度應為 100萬。
+                5. **重大傷病**：請抓取「重大傷病(非慢性精神疾病)」的保險金。例如「醫卡健康 (MAJIEA)」額度應為 50萬。
+                6. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。***防呆警示：若此數字小於 10,000 元，絕對是抓到保費了，請重新尋找 3萬/5萬/10萬 的數字。***
 
                 【其他規則】
                 - **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
                 - **長照失能白名單**：針對長照/失能，**僅能**推薦名稱包含**「享放心、享安心、享順心、心安心」**且具備月/年給付的商品。**絕對禁止**拿一般壽險充當長照險。
-                - **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
