@@ -46,7 +46,6 @@ st.markdown("""
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
-    /* 表格優化 */
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
     .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 12px; text-align: center; white-space: nowrap; }
     .report-box th * { color: #ffffff !important; }
@@ -122,7 +121,7 @@ def load_kb():
     all_files = os.listdir('.')
     debug_log.append(f"📂 目錄: {all_files}")
 
-    # 1. Excel
+    # 1. Excel (xlsx/xlsm)
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     for f in excel_files:
         try:
@@ -229,7 +228,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件")
+        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -306,7 +305,6 @@ with st.form("client_form"):
             
     history_note = st.text_area("備註", value=data.get("history_note", ""), height=68)
     
-    # --- ★★★ 關鍵修改：新增警語 ★★★ ---
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>📄 建議書與方針</h3>", unsafe_allow_html=True)
     uploaded_proposal = st.file_uploader("上傳建議書 PDF (⚠️ 僅可上傳醫療彙整，勿傳整本建議書)", type=["pdf"])
     st.caption("💡 提示：只上傳「彙整表」那一頁，AI 分析最準確且快速！")
@@ -326,14 +324,14 @@ if save_btn or analyze_btn:
     elif not client_name: st.error("請輸入姓名")
     else:
         proposal_text = ""
-        # 讀取建議書 (防呆機制)
+        # 讀取建議書
         if uploaded_proposal and pdf_tool_ready:
             try:
                 with pdfplumber.open(uploaded_proposal) as pdf:
                     proposal_text = "".join([p.extract_text() or "" for p in pdf.pages])
             except: pass
         
-        # UI 提示：如果上傳了檔案但讀不到字
+        # UI 提示
         if uploaded_proposal and not proposal_text:
             st.warning("⚠️ 警告：無法讀取 PDF 內容，可能是圖片掃描檔。AI 將無法進行建議書對照。")
 
@@ -375,6 +373,7 @@ if save_btn or analyze_btn:
                 if proposal_text:
                     proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
 
+                # ★★★ 關鍵 Prompt 修改：長照失能白名單 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
@@ -385,10 +384,11 @@ if save_btn or analyze_btn:
                 3. **嚴格數據來源 (Strict Data Source)**：
                    - **[現有保障 (Before)]**：僅能來自用戶填寫的表單數據。
                    - **[建議書補強 (After)]**：***絕對嚴格限制*** 僅能來自上方提供的 【📄 上傳建議書內容】。
-                   - **禁止幻覺**：如果建議書 PDF 中沒有提到某個險種（例如沒有癌症險），[After] 欄位必須填寫「無」或「未規劃」，**絕對不可以** 自動從 Excel 或手冊中抓取商品來填補。
+                   - **禁止幻覺**：如果建議書中沒有某個險種，[After] 欄位填「無」。
                 4. **對照基準**：表格請以 Mars 標準 ({mars_standards}) 為基準。
                 5. **壽險潛規則**：若需補充壽險，**嚴禁**推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
-                6. **禁忌**：嚴禁提及保費金額。不透露資料來源。
+                6. **長照失能嚴格規則**：針對「長照/失能」缺口，**僅能**推薦名稱包含「享放心、享安心、享順心、心安心」且具備「月給付」或「年給付」的商品。**絕對禁止**拿一般壽險（如鑫鑫向榮、傳富一生）充當長照險。
+                7. **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
@@ -403,9 +403,8 @@ if save_btn or analyze_btn:
                 1. **[💖 暖心開場 (NLP)]**
                 2. **[❓ SPIN 情境探索]**
                 3. **[📊 保單健診與缺口分析]** (***精簡表格***：[檢核項目]、[Mars標準]、[現有保障(Before)]、[建議書補強(After)]、[狀態])
-                   *再次提醒：After 欄位只能寫建議書裡有的東西！*
-                4. **[🛡️ 專屬規劃建議]** (針對建議書中 *有出現* 的商品，引用 Excel/手冊的數據來強化優勢)
-                5. **[💡 補充建議]** (針對建議書中 *沒有* 但客戶需要的缺口，在此處提出，並遵守壽險潛規則)
+                4. **[🛡️ 專屬規劃建議]** (引用 Excel/手冊的英文代號與理賠數據)
+                5. **[💡 補充建議]** (其他缺口提醒，遵守壽險與長照規則)
                 """
                 
                 with st.spinner("資深顧問 Mars 正在進行保單健診..."):
