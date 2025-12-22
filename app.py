@@ -11,7 +11,7 @@ import os
 # --- 1. 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 2. 套件檢查 ---
+# --- 2. 安全引入套件 ---
 pdf_tool_ready = False
 try:
     import pdfplumber
@@ -19,7 +19,7 @@ try:
 except ImportError:
     pdf_tool_ready = False
 
-# --- 3. 🎨 風格設定 (Mars 完整視覺) ---
+# --- 3. 🎨 風格設定 ---
 st.markdown("""
 <style>
     :root { --bg-main: #001222; --text-orange: #ff9933; --text-body: #e0e0e0; }
@@ -35,12 +35,11 @@ st.markdown("""
     
     section[data-testid="stSidebar"] { background-color: #001a33; border-right: 1px solid #ff9933; }
     
-    /* 報告框 */
     .report-box {
         background-color: #ffffff !important; padding: 40px; border-radius: 8px;
         border-top: 8px solid var(--text-orange); margin-top: 20px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        font-family: "Microsoft JhengHei", sans-serif;
+        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
     }
     .report-box p, .report-box li, .report-box div, .report-box span { color: #2c3e50 !important; line-height: 1.6; }
     .report-box h1, .report-box h2 { color: #d35400 !important; border-bottom: 2px solid #ff9933; margin-top: 30px; }
@@ -113,16 +112,16 @@ if "kb_text" not in st.session_state: st.session_state.kb_text = ""
 if "kb_count" not in st.session_state: st.session_state.kb_count = 0
 if "kb_debug" not in st.session_state: st.session_state.kb_debug = []
 
-# --- 6. 核心：知識庫讀取 (Excel/TXT/PDF) ---
+# --- 6. 核心：知識庫讀取 (萬能防亂碼版) ---
 def load_kb():
     full_text = ""
     count = 0
     debug_log = []
     
     all_files = os.listdir('.')
-    debug_log.append(f"📂 目錄: {all_files}")
+    debug_log.append(f"📂 系統檔案: {all_files}")
 
-    # 1. Excel (xlsx/xlsm)
+    # 1. 讀取 Excel (xlsx/xlsm)
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     for f in excel_files:
         try:
@@ -132,21 +131,29 @@ def load_kb():
             count += 1
             debug_log.append(f"✅ Excel: {f}")
         except Exception as e:
-            debug_log.append(f"❌ Excel Error {f}: {e}")
+            debug_log.append(f"❌ Excel 失敗 {f}: {e}")
 
-    # 2. TXT
+    # 2. 讀取 TXT (自動偵測 UTF-8 或 Big5)
     txt_files = [f for f in all_files if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
         try:
+            # 先嘗試 UTF-8
             with open(f, "r", encoding="utf-8") as file:
-                full_text += f"\n=== 手冊內容 ({f}) ===\n{file.read()}\n"
+                full_text += f"\n=== 手冊資料 ({f}) ===\n{file.read()}\n"
                 count += 1
-                debug_log.append(f"✅ TXT: {f}")
-        except Exception as e:
-            debug_log.append(f"❌ TXT Error {f}: {e}")
+                debug_log.append(f"✅ TXT (UTF-8): {f}")
+        except UnicodeDecodeError:
+            try:
+                # 失敗則嘗試 Big5 (CP950 - Windows 預設)
+                with open(f, "r", encoding="cp950") as file:
+                    full_text += f"\n=== 手冊資料 ({f}) ===\n{file.read()}\n"
+                    count += 1
+                    debug_log.append(f"✅ TXT (Big5): {f}")
+            except Exception as e:
+                debug_log.append(f"❌ TXT 編碼失敗 {f}: {e}")
 
-    # 3. PDF (後台手冊)
+    # 3. 讀取 PDF
     if pdf_tool_ready:
         pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
         for f in pdf_files:
@@ -157,7 +164,7 @@ def load_kb():
                     count += 1
                     debug_log.append(f"✅ PDF: {f}")
             except Exception as e:
-                debug_log.append(f"❌ PDF Error {f}: {e}")
+                debug_log.append(f"❌ PDF 失敗 {f}: {e}")
     
     return full_text, count, debug_log
 
@@ -190,7 +197,7 @@ def generate_with_retry(model, prompt):
             else: raise e
     raise Exception("API Error")
 
-# --- 8. 側邊欄 (模型清單全開) ---
+# --- 8. 側邊欄 (保留所有 Gemini 模型) ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單")
     ukey_input = st.text_input("🔑 專屬金鑰", value=st.session_state.user_key, type="password")
@@ -225,7 +232,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
+        st.success(f"✅ {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -236,7 +243,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # --- ★★★ 模型選擇 (完全不隱藏，全部列出) ★★★ ---
+    # 模型選擇
     api_key = ""
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -248,13 +255,11 @@ with st.sidebar:
     if api_key:
         genai.configure(api_key=api_key)
         try:
-            # 列出「所有」支援文字生成的模型
             all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            # 排序：讓 1.5-flash 排第一個當預設，其他依序排列
             all_models.sort(key=lambda x: "1.5-flash" not in x.lower())
             
             st.markdown("### 🤖 模型選擇")
-            selected_model_name = st.selectbox("選擇大腦 (建議 Flash)", all_models, index=0)
+            selected_model_name = st.selectbox("選擇大腦", all_models, index=0)
             model = genai.GenerativeModel(selected_model_name)
             st.success(f"🟢 {selected_model_name}")
         except: st.error("連線失敗")
@@ -305,13 +310,13 @@ with st.form("client_form"):
             
     history_note = st.text_area("備註", value=data.get("history_note", ""), height=68)
     
-    # --- ★★★ 新增：建議書上傳區 ★★★ ---
+    # 上傳建議書
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>📄 建議書與方針</h3>", unsafe_allow_html=True)
     uploaded_proposal = st.file_uploader("上傳建議書 PDF (AI 將進行健診對照)", type=["pdf"])
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄", value=data.get("quotes", ""), height=68)
-    with c9: target_product = st.text_area("🎯 銷售方針 (想推的商品、切入點)", value=data.get("target_product", ""), height=68)
+    with c9: target_product = st.text_area("🎯 銷售方針 (如：用新樂活補日額)", value=data.get("target_product", ""), height=68)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     b1, b2, b3 = st.columns([1, 1, 2])
@@ -323,7 +328,7 @@ if save_btn or analyze_btn:
     if not st.session_state.user_key: st.error("請輸入金鑰")
     elif not client_name: st.error("請輸入姓名")
     else:
-        # 讀取建議書內容
+        # 讀取建議書
         proposal_text = ""
         if uploaded_proposal and pdf_tool_ready:
             try:
@@ -351,9 +356,9 @@ if save_btn or analyze_btn:
             if not model: st.error("請連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
-                # 簡單的額度控管：如果不是 Flash，手冊只讀 5000 字
+                # 額度控管：若有上傳建議書，則知識庫稍微減少讀取量
                 is_flash = "flash" in model.model_name.lower()
-                kb_limit = 35000 if is_flash else 5000
+                kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 detailed_coverage = f"""
@@ -362,9 +367,8 @@ if save_btn or analyze_btn:
                 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳的建議書內容】\n{proposal_text[:10000]}\n(請將此內容與現有保障進行 Before & After 對照)\n"
+                    proposal_context = f"\n【📄 上傳建議書內容】\n{proposal_text[:12000]}\n(請將此內容與現有保障進行 Before & After 對照)\n"
 
-                # ★★★ 核心 Prompt：20年顧問、SPIN、健診、銷售方針優先 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」，一位從業 20 年的資深保險顧問。
                 你的專長：SPIN 情境行銷、NLP 溝通、保單健診。
@@ -434,7 +438,7 @@ if st.session_state.current_strategy:
         else:
             with st.spinner("教練思考中..."):
                 is_flash = "flash" in model.model_name.lower()
-                kb_limit = 35000 if is_flash else 5000
+                kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 chat_prompt = f"""
