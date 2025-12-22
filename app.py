@@ -228,7 +228,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件")
+        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -324,7 +324,7 @@ if save_btn or analyze_btn:
     elif not client_name: st.error("請輸入姓名")
     else:
         proposal_text = ""
-        # 讀取建議書
+        # 讀取建議書 (防呆機制)
         if uploaded_proposal and pdf_tool_ready:
             try:
                 with pdfplumber.open(uploaded_proposal) as pdf:
@@ -373,6 +373,7 @@ if save_btn or analyze_btn:
                 if proposal_text:
                     proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
 
+                # ★★★ 關鍵修改：數據計算邏輯 + 分類規則 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
@@ -383,10 +384,19 @@ if save_btn or analyze_btn:
                 3. **嚴格數據來源**：
                    - [現有保障] 來自表單。
                    - [建議書補強] 來自上傳 PDF，若無則填「無」，禁止腦補。
-                4. **對照基準**：以 Mars 標準 ({mars_standards}) 為基準。
-                5. **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
-                6. **長照失能白名單**：針對長照/失能，**僅能**推薦名稱包含**「享放心、享安心、享順心、心安心」**且具備月/年給付的商品。**絕對禁止**拿一般壽險充當長照險。
-                7. **禁忌**：嚴禁提及保費金額。不透露資料來源。
+                
+                【表格數據計算邏輯 (Strict Calculation Rules)】
+                請嚴格遵守以下計算方式填寫 [建議書補強(After)] 欄位，不可胡亂加總：
+                1. **日額醫療**：僅加總「住院日額(元/日)」，**不要**加總手術費或雜費。格式範例：「4000元/日」。
+                2. **手術**：若為倍數給付，請計算出「最高理賠金額」。格式範例：「最高 80,000元/次」。
+                3. **癌症**：僅計算「一次金」(初次罹癌 + 重大傷病保險金)。**不要**把住院日額或放化療費用加進去。
+                4. **重大疾病**：僅計算「重大傷病/特定傷病一次金」。
+                5. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。格式範例：「5萬 (實支實付)」。
+
+                【其他規則】
+                - **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
+                - **長照失能白名單**：針對長照/失能，**僅能**推薦名稱包含**「享放心、享安心、享順心、心安心」**且具備月/年給付的商品。**絕對禁止**拿一般壽險充當長照險。
+                - **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
@@ -400,7 +410,7 @@ if save_btn or analyze_btn:
                 【輸出架構】
                 1. **[💖 暖心開場 (NLP)]**
                 2. **[❓ SPIN 情境探索]**
-                3. **[📊 保單健診與缺口分析]** (***精簡表格***：[檢核項目]、[Mars標準]、[現有保障(Before)]、[建議書補強(After)]、[狀態])
+                3. **[📊 保單健診與缺口分析]** (表格：[檢核項目]、[Mars標準]、[現有保障]、[建議書補強]、[狀態])
                 4. **[🛡️ 專屬規劃建議]** (引用 Excel/手冊的英文代號與理賠數據)
                 5. **[💡 補充建議]** (其他缺口提醒，遵守壽險與長照規則)
                 """
@@ -447,22 +457,12 @@ if st.session_state.current_strategy:
                 kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
-                # ★★★ Chat Prompt 關鍵修改：植入長照白名單與壽險規則 ★★★
                 chat_prompt = f"""
                 你是 Coach Mars Chang (20年資深顧問)。
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
-                
-                【系統強制規則 (System Rules)】
-                1. **長照失能白名單**：若使用者詢問「長照」或「失能」相關險種，**必須**直接推薦以下系列：**「享放心、享安心、享順心、心安心」**。請說明這些商品具備「月給付」或「年給付」功能。
-                2. **禁止事項**：**絕對禁止**說「手冊沒有資料」或推薦壽險充當長照。若手冊沒細節，請說「建議規劃『享』字輩的專屬長照險」。
-                3. **壽險規則**：僅推美元或鑫鑫向榮，不推台幣傳統壽險。
-                
-                對話歷史：
-                {st.session_state.chat_history}
-                
-                最新問題：{prompt}
-                任務：請回答問題，語氣溫暖專業，並嚴格遵守上述白名單規則。
+                問題：{prompt}
+                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
