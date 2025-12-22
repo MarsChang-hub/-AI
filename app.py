@@ -11,7 +11,7 @@ import os
 # --- 1. 頁面設定 ---
 st.set_page_config(page_title="保險業務超級軍師", page_icon="🛡️", layout="wide")
 
-# --- 2. 安全引入套件 ---
+# --- 2. 套件檢查 ---
 pdf_tool_ready = False
 try:
     import pdfplumber
@@ -35,19 +35,21 @@ st.markdown("""
     
     section[data-testid="stSidebar"] { background-color: #001a33; border-right: 1px solid #ff9933; }
     
+    /* 報告框 */
     .report-box {
         background-color: #ffffff !important; padding: 40px; border-radius: 8px;
         border-top: 8px solid var(--text-orange); margin-top: 20px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+        font-family: "Microsoft JhengHei", sans-serif;
     }
     .report-box p, .report-box li, .report-box div, .report-box span { color: #2c3e50 !important; line-height: 1.6; }
     .report-box h1, .report-box h2 { color: #d35400 !important; border-bottom: 2px solid #ff9933; margin-top: 30px; }
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
-    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; }
-    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 15px; }
+    /* 表格強制優化 */
+    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
+    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 15px; text-align: left; }
     .report-box th * { color: #ffffff !important; }
     .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; }
     .report-box tr:nth-child(even) { background-color: #f2f3f4; } 
@@ -112,16 +114,15 @@ if "kb_text" not in st.session_state: st.session_state.kb_text = ""
 if "kb_count" not in st.session_state: st.session_state.kb_count = 0
 if "kb_debug" not in st.session_state: st.session_state.kb_debug = []
 
-# --- 6. 核心：知識庫讀取 (萬能防亂碼版) ---
+# --- 6. 核心：知識庫讀取 ---
 def load_kb():
     full_text = ""
     count = 0
     debug_log = []
-    
     all_files = os.listdir('.')
-    debug_log.append(f"📂 系統檔案: {all_files}")
+    debug_log.append(f"📂 目錄: {all_files}")
 
-    # 1. 讀取 Excel (xlsx/xlsm)
+    # 1. Excel (xlsx/xlsm)
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     for f in excel_files:
         try:
@@ -131,29 +132,26 @@ def load_kb():
             count += 1
             debug_log.append(f"✅ Excel: {f}")
         except Exception as e:
-            debug_log.append(f"❌ Excel 失敗 {f}: {e}")
+            debug_log.append(f"❌ Excel Error {f}: {e}")
 
-    # 2. 讀取 TXT (自動偵測 UTF-8 或 Big5)
+    # 2. TXT
     txt_files = [f for f in all_files if f.lower().endswith('.txt')]
     for f in txt_files:
         if "requirements" in f: continue
         try:
-            # 先嘗試 UTF-8
             with open(f, "r", encoding="utf-8") as file:
-                full_text += f"\n=== 手冊資料 ({f}) ===\n{file.read()}\n"
+                full_text += f"\n=== 手冊內容 ({f}) ===\n{file.read()}\n"
                 count += 1
-                debug_log.append(f"✅ TXT (UTF-8): {f}")
+                debug_log.append(f"✅ TXT: {f}")
         except UnicodeDecodeError:
             try:
-                # 失敗則嘗試 Big5 (CP950 - Windows 預設)
                 with open(f, "r", encoding="cp950") as file:
-                    full_text += f"\n=== 手冊資料 ({f}) ===\n{file.read()}\n"
+                    full_text += f"\n=== 手冊內容 ({f}) ===\n{file.read()}\n"
                     count += 1
-                    debug_log.append(f"✅ TXT (Big5): {f}")
-            except Exception as e:
-                debug_log.append(f"❌ TXT 編碼失敗 {f}: {e}")
+                    debug_log.append(f"✅ TXT(Big5): {f}")
+            except: debug_log.append(f"❌ TXT Error {f}")
 
-    # 3. 讀取 PDF
+    # 3. PDF
     if pdf_tool_ready:
         pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
         for f in pdf_files:
@@ -164,7 +162,7 @@ def load_kb():
                     count += 1
                     debug_log.append(f"✅ PDF: {f}")
             except Exception as e:
-                debug_log.append(f"❌ PDF 失敗 {f}: {e}")
+                debug_log.append(f"❌ PDF Error {f}: {e}")
     
     return full_text, count, debug_log
 
@@ -181,7 +179,6 @@ def calculate_life_path_number(birth_text):
     return total
 
 def generate_with_retry(model, prompt):
-    # 安全設定全開
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -197,7 +194,7 @@ def generate_with_retry(model, prompt):
             else: raise e
     raise Exception("API Error")
 
-# --- 8. 側邊欄 (保留所有 Gemini 模型) ---
+# --- 8. 側邊欄 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單")
     ukey_input = st.text_input("🔑 專屬金鑰", value=st.session_state.user_key, type="password")
@@ -232,7 +229,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件")
+        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -310,7 +307,6 @@ with st.form("client_form"):
             
     history_note = st.text_area("備註", value=data.get("history_note", ""), height=68)
     
-    # 上傳建議書
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>📄 建議書與方針</h3>", unsafe_allow_html=True)
     uploaded_proposal = st.file_uploader("上傳建議書 PDF (AI 將進行健診對照)", type=["pdf"])
     
@@ -328,7 +324,6 @@ if save_btn or analyze_btn:
     if not st.session_state.user_key: st.error("請輸入金鑰")
     elif not client_name: st.error("請輸入姓名")
     else:
-        # 讀取建議書
         proposal_text = ""
         if uploaded_proposal and pdf_tool_ready:
             try:
@@ -356,19 +351,19 @@ if save_btn or analyze_btn:
             if not model: st.error("請連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
-                # 額度控管：若有上傳建議書，則知識庫稍微減少讀取量
                 is_flash = "flash" in model.model_name.lower()
                 kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 detailed_coverage = f"""
-                【現有保障】日額:{cov_daily}, 實支:{cov_med_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
+                【現有保障 (Before)】日額:{cov_daily}, 實支:{cov_med_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
                 """
                 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳建議書內容】\n{proposal_text[:12000]}\n(請將此內容與現有保障進行 Before & After 對照)\n"
+                    proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
 
+                # ★★★ Prompt 關鍵修改：強制表格 + 壽險過濾 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」，一位從業 20 年的資深保險顧問。
                 你的專長：SPIN 情境行銷、NLP 溝通、保單健診。
@@ -377,9 +372,8 @@ if save_btn or analyze_btn:
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
                 2. **對照查表**：請搜尋下方的【Excel 資料庫】，若有對應商品，請列出 [英文代號] 並引用理賠數據。
-                3. **保單健診**：請使用「保單健診 (Policy Health Check)」一詞，進行現有保障 vs 建議書(若有)的診斷。
-                4. **其他建議後置**：非目標險種（如壽險）請放在最後的補充建議，不要干擾主軸。
-                5. **禁忌**：嚴禁提及保費金額。不透露資料來源。
+                3. **壽險潛規則**：若需補充壽險建議，**只能**推薦「美元商品」或「鑫鑫向榮」。**嚴禁**推薦一般台幣傳統壽險。
+                4. **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
@@ -391,12 +385,12 @@ if save_btn or analyze_btn:
                 【知識庫 (Excel/TXT)】:
                 {kb_context}
 
-                【輸出架構 (使用溫暖、專業語氣)】
-                1. **[💖 暖心開場 (NLP)]** (同理客戶語錄，建立連結)
-                2. **[❓ SPIN 情境探索]** (針對 "{target_product}" 設計情境問句，引發痛點)
-                3. **[📊 保單健診與缺口分析]** (若有建議書，請做 Before/After 對照表格；若無，則分析現有缺口)
-                4. **[🛡️ 專屬規劃建議]** (引用 Excel 商品數據，強調價值與解決方案)
-                5. **[💡 補充建議]** (其他缺口提醒)
+                【輸出架構】
+                1. **[💖 暖心開場 (NLP)]**
+                2. **[❓ SPIN 情境探索]**
+                3. **[📊 保單健診與缺口分析]** (***務必製作 Markdown 表格***：欄位包含 [保障項目]、[現有保障 (Before)]、[建議規劃 (After)]、[缺口分析])
+                4. **[🛡️ 專屬規劃建議]** (引用 Excel 數據)
+                5. **[💡 補充建議]** (請遵守壽險潛規則，僅推美元或鑫鑫向榮)
                 """
                 
                 with st.spinner("資深顧問 Mars 正在進行保單健診..."):
@@ -438,7 +432,7 @@ if st.session_state.current_strategy:
         else:
             with st.spinner("教練思考中..."):
                 is_flash = "flash" in model.model_name.lower()
-                kb_limit = 35000 if is_flash else 4000
+                kb_limit = 35000 if is_flash else 5000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 chat_prompt = f"""
@@ -446,7 +440,7 @@ if st.session_state.current_strategy:
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格。
+                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格，壽險只推美元或鑫鑫向榮。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
