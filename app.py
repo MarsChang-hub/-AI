@@ -46,15 +46,12 @@ st.markdown("""
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
-    /* 表格優化 */
-    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
-    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 12px; text-align: center; white-space: nowrap; }
+    /* 表格優化：直球對決風格 */
+    .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 16px; border: 2px solid #ddd; }
+    .report-box th { background-color: #2c3e50 !important; color: #ffffff !important; padding: 12px; text-align: center; }
     .report-box th * { color: #ffffff !important; }
-    .report-box td { padding: 12px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; text-align: center; }
-    .report-box tr:nth-child(even) { background-color: #f2f3f4; } 
-    
-    /* 側邊欄除錯區 */
-    .debug-area { font-size: 12px; color: #aaa; background: #111; padding: 10px; border-radius: 5px; }
+    .report-box td { padding: 12px; border-bottom: 1px solid #eee; color: #333 !important; text-align: center; font-weight: 500; }
+    .report-box tr:nth-child(even) { background-color: #f8f9fa; } 
 
     .mars-watermark {
         position: fixed; top: 15px; right: 25px; color: rgba(255, 153, 51, 0.9);
@@ -121,7 +118,6 @@ def load_kb():
     full_text = ""
     count = 0
     debug_log = []
-    
     all_files = os.listdir('.')
     debug_log.append(f"📂 目錄: {all_files}")
 
@@ -197,7 +193,7 @@ def generate_with_retry(model, prompt):
             else: raise e
     raise Exception("API Error")
 
-# --- 8. 側邊欄 (新增透視鏡) ---
+# --- 8. 側邊欄 ---
 with st.sidebar:
     st.markdown("### 🗂️ 客戶名單")
     ukey_input = st.text_input("🔑 專屬金鑰", value=st.session_state.user_key, type="password")
@@ -263,7 +259,6 @@ with st.sidebar:
             st.success(f"🟢 {selected_model_name}")
         except: st.error("連線失敗")
 
-    # --- ★★★ 新增：PDF 內容透視鏡 (除錯用) ★★★ ---
     if "debug_pdf_text" in st.session_state and st.session_state.debug_pdf_text:
         st.markdown("---")
         with st.expander("🔍 PDF 內容透視鏡 (Debug)", expanded=True):
@@ -343,10 +338,8 @@ if save_btn or analyze_btn:
                     proposal_text = "".join([p.extract_text() or "" for p in pdf.pages])
             except: pass
         
-        # 儲存到 session 以供側邊欄檢視
         st.session_state.debug_pdf_text = proposal_text
         
-        # UI 提示
         if uploaded_proposal and not proposal_text:
             st.warning("⚠️ 警告：無法讀取 PDF 內容，可能是圖片掃描檔。AI 將無法進行建議書對照。")
 
@@ -375,61 +368,61 @@ if save_btn or analyze_btn:
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 mars_standards = {
-                    "日額": "4000元", "實支": "20萬", "手術": "1000", "意外": "10萬",
-                    "癌症": "50萬", "重大": "30萬", "放化療": "3000", "長照失能": "3萬", "壽險": "5倍年薪"
+                    "住院日額": "4000元", "醫療實支實付": "20萬", "定額手術": "1000", 
+                    "意外實支實付": "10萬", "癌症一筆金": "50萬", "重大一筆金": "30萬", 
+                    "放療": "3000", "化療": "3000", 
+                    "長照月給付": "3萬", "失能月給付": "3萬", "壽險": "5倍年薪"
                 }
 
                 current_coverage = {
-                    "日額": cov_daily or "0", "實支": cov_med_reim or "0", "癌症": cov_cancer or "0",
-                    "重大": cov_major or "0", "長照": cov_ltc or "0", "壽險": cov_life or "0"
+                    "住院日額": cov_daily or "0", "醫療實支": cov_med_reim or "0", "定額手術": cov_surg or "0", 
+                    "意外實支": cov_acc_reim or "0", "癌症": cov_cancer or "0", "重大": cov_major or "0", 
+                    "放療": cov_radio or "0", "化療": cov_chemo or "0", 
+                    "長照": cov_ltc or "0", "失能": cov_dis or "0", "壽險": cov_life or "0"
                 }
 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
+                    proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
 
-                # ★★★ 關鍵 Prompt 修改：防火牆與防呆 ★★★
+                # ★★★ 關鍵 Prompt：直球對決表格 + 防呆 + 白名單 ★★★
                 prompt = f"""
-                你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
+                你是「教練 Coach Mars Chang」。
+                請依據【銷售方針】："{target_product}" 進行分析。
                 
-                【戰略最高指導原則】
-                請依據【銷售方針】："{target_product}"。
-                1. **絕對優先**：請針對此方針/商品進行推廣。
-                2. **去重複化**：不要重複贅述。
-                3. **嚴格數據來源 (Source Firewall)**：
-                   - [現有保障] 僅來自表單。
-                   - [建議書補強] 僅來自上方提供的【上傳建議書內容】。
-                   - ***絕對禁止*** 使用 Excel/手冊的資料來填補建議書缺口。如果 PDF 沒寫，就填「無」。
+                【戰略 1：表格直球對決 (Strict Table)】
+                請製作一個簡潔表格，直接對照是否達標。***不要列出詳細算式，只要給出總額。***
+                欄位：[檢核項目]、[Mars標準]、[總保障額度 (Before+After)]、[達標狀態]
+                1. [達標狀態] 請用：✅ 達標 / ⚠️ 未達標 (缺口金額)
+                2. [總保障額度] = 用戶表單的 [現有保障] + 建議書中的 [建議書補強]。若無數據填 "0"。
+                3. 請依據以下標準逐項檢核：
+                   {json.dumps(mars_standards, ensure_ascii=False)}
                 
-                【表格數據計算與防呆 (***Strict & Sanity Check***)】
-                請仔細辨別 PDF 中的數字，**嚴禁抓錯**：
-                1. **日額醫療**：僅抓取「住院日額(元/日)」。例如 (97)KHLR 或 GNHRL。
-                2. **醫療實支 (新增)**：請抓取「住院醫療費用限額」。例如建議書中的「心康泰 (MAHUGA)」額度應為 30萬。
-                3. **手術**：若為倍數給付，請計算出「最高理賠金額」。
-                4. **癌症**：請抓取「初次罹患癌症-重度」的保險金。例如「好活力 (MAJIXA)」額度應為 100萬。
-                5. **重大傷病**：請抓取「重大傷病(非慢性精神疾病)」的保險金。例如「醫卡健康 (MAJIEA)」額度應為 50萬。
-                6. **意外**：僅標示「意外實支實付(MR/MTA)」的額度。***防呆警示：若數字小於 10,000，絕對是抓到保費了，請忽略該數字。***
-
-                【其他規則】
-                - **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
-                - **長照失能白名單**：針對長照/失能，**僅能**推薦名稱包含**「享放心、享安心、享順心、心安心」**且具備月/年給付的商品。**絕對禁止**拿一般壽險充當長照險。
-
+                【戰略 2：數據防呆 (Sanity Check)】
+                請仔細過濾 PDF 數據，**嚴禁抓取保費**：
+                - **日額/手術/放化療**：僅抓取「元/日」或「元/次」。若看到非整數或過小的數字(如 786)，那是保費，忽略它。
+                - **癌症/重大**：僅抓取「一次金」額度。嚴禁把日額混入。
+                - **意外**：僅抓取「實支實付」額度。忽略身故金。
+                - **醫療實支**：請抓取「住院醫療費用限額」(雜費)。
+                
+                【戰略 3：嚴格白名單】
+                - **壽險**：僅推美元或鑫鑫向榮。
+                - **長照/失能**：僅推「享放心、享安心、享順心、心安心」。絕對禁止用壽險充當。
+                
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
                 語錄："{quotes}"
                 現有保障：{current_coverage}
                 
                 {proposal_context}
-                【參考資料庫 (僅供查閱代號，不可用於無中生有)】: 
-                {kb_context}
+                【知識庫】: {kb_context}
 
                 【輸出架構】
-                1. **[💖 暖心開場 (NLP)]**
+                1. **[💖 暖心開場]** (NLP)
                 2. **[❓ SPIN 情境探索]**
-                3. **[📊 保單健診與缺口分析]** (表格：[檢核項目]、[Mars標準]、[現有保障]、[建議書補強]、[狀態])
-                   *表格必須包含「醫療實支」欄位*
-                4. **[🛡️ 專屬規劃建議]** (引用 Excel/手冊的英文代號與理賠數據)
-                5. **[💡 補充建議]** (其他缺口提醒，遵守壽險與長照規則)
+                3. **[📊 保單健診與缺口分析]** (請畫出上述定義的直球對決表格)
+                4. **[🛡️ 專屬規劃建議]** (針對缺口提出 Excel/手冊中的商品建議)
+                5. **[💡 補充建議]** (其他提醒)
                 """
                 
                 with st.spinner("資深顧問 Mars 正在進行保單健診..."):
