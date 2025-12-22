@@ -46,7 +46,6 @@ st.markdown("""
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
-    /* 表格簡潔化 */
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
     .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 12px; text-align: center; white-space: nowrap; }
     .report-box th * { color: #ffffff !important; }
@@ -229,7 +228,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件")
+        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -255,7 +254,7 @@ with st.sidebar:
             all_models.sort(key=lambda x: "1.5-flash" not in x.lower())
             
             st.markdown("### 🤖 模型選擇")
-            selected_model_name = st.selectbox("選擇大腦", all_models, index=0)
+            selected_model_name = st.selectbox("選擇大腦 (建議 Flash)", all_models, index=0)
             model = genai.GenerativeModel(selected_model_name)
             st.success(f"🟢 {selected_model_name}")
         except: st.error("連線失敗")
@@ -324,11 +323,16 @@ if save_btn or analyze_btn:
     elif not client_name: st.error("請輸入姓名")
     else:
         proposal_text = ""
+        # 讀取建議書 (防呆機制)
         if uploaded_proposal and pdf_tool_ready:
             try:
                 with pdfplumber.open(uploaded_proposal) as pdf:
                     proposal_text = "".join([p.extract_text() or "" for p in pdf.pages])
             except: pass
+        
+        # UI 提示：如果上傳了檔案但讀不到字
+        if uploaded_proposal and not proposal_text:
+            st.warning("⚠️ 警告：無法讀取 PDF 內容，可能是圖片掃描檔。AI 將無法進行建議書對照。")
 
         form_data = {
             "name": client_name, "stage": s_stage, "gender": gender, 
@@ -350,18 +354,15 @@ if save_btn or analyze_btn:
             if not model: st.error("請連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
-                # 額度控管：若有上傳建議書，則知識庫減少讀取
                 is_flash = "flash" in model.model_name.lower()
                 kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
-                # 準備 Mars 標準
                 mars_standards = {
                     "日額": "4000元", "實支": "20萬", "手術": "1000", "意外": "10萬",
                     "癌症": "50萬", "重大": "30萬", "放化療": "3000", "長照失能": "3萬", "壽險": "5倍年薪"
                 }
 
-                # 準備現有保障數據 (Before)
                 current_coverage = {
                     "日額": cov_daily or "0", "實支": cov_med_reim or "0", "癌症": cov_cancer or "0",
                     "重大": cov_major or "0", "長照": cov_ltc or "0", "壽險": cov_life or "0"
@@ -371,16 +372,19 @@ if save_btn or analyze_btn:
                 if proposal_text:
                     proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
 
-                # ★★★ Prompt 關鍵修正：精簡、去重複、基準對照 ★★★
+                # ★★★ Prompt：嚴格隔離來源，禁止自動補全 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
                 【戰略最高指導原則】
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
-                2. **去重複化**：已在「情境探索」講過的觀點，不要在「專屬規劃」重複贅述。請直接進入商品優勢。
-                3. **簡潔表格**：保單健診請使用簡潔表格，僅列出【關鍵差異】，不要列出所有細項。
-                4. **對照基準**：表格請以 Mars 標準 ({mars_standards}) 為基準，標示 [現有不足] vs [建議書補強]。
+                2. **去重複化**：已在「情境探索」講過的觀點，不要在「專屬規劃」重複贅述。
+                3. **嚴格數據來源 (Strict Data Source)**：
+                   - **[現有保障 (Before)]**：僅能來自用戶填寫的表單數據。
+                   - **[建議書補強 (After)]**：***絕對嚴格限制*** 僅能來自上方提供的 【📄 上傳建議書內容】。
+                   - **禁止幻覺**：如果建議書 PDF 中沒有提到某個險種（例如沒有癌症險），[After] 欄位必須填寫「無」或「未規劃」，**絕對不可以** 自動從 Excel 或手冊中抓取商品來填補。
+                4. **對照基準**：表格請以 Mars 標準 ({mars_standards}) 為基準。
                 5. **壽險潛規則**：若需補充壽險，**嚴禁**推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
                 6. **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
@@ -390,17 +394,19 @@ if save_btn or analyze_btn:
                 現有保障：{current_coverage}
                 
                 {proposal_context}
-                【知識庫】: {kb_context}
+                【參考資料庫 (僅供查閱代號與條款細節，不可用於無中生有)】: 
+                {kb_context}
 
                 【輸出架構】
-                1. **[💖 暖心開場 (NLP)]** (快速建立連結，不要廢話)
-                2. **[❓ SPIN 情境探索]** (針對 "{target_product}"，引導痛點後直接過渡到解決方案)
-                3. **[📊 保單健診與缺口分析]** (***精簡表格***：欄位為 [檢核項目]、[Mars標準]、[現有保障(Before)]、[建議書補強(After)]、[狀態:✅/⚠️/🆘])
-                4. **[🛡️ 專屬規劃建議]** (引用 Excel/手冊的英文代號與理賠數據，強調如何達標 Mars 標準)
-                5. **[💡 補充建議]** (壽險/長照等，點到為止)
+                1. **[💖 暖心開場 (NLP)]**
+                2. **[❓ SPIN 情境探索]**
+                3. **[📊 保單健診與缺口分析]** (***精簡表格***：[檢核項目]、[Mars標準]、[現有保障(Before)]、[建議書補強(After)]、[狀態])
+                   *再次提醒：After 欄位只能寫建議書裡有的東西！*
+                4. **[🛡️ 專屬規劃建議]** (針對建議書中 *有出現* 的商品，引用 Excel/手冊的數據來強化優勢)
+                5. **[💡 補充建議]** (針對建議書中 *沒有* 但客戶需要的缺口，在此處提出，並遵守壽險潛規則)
                 """
                 
-                with st.spinner("資深顧問 Mars 正在進行精準分析..."):
+                with st.spinner("資深顧問 Mars 正在進行保單健診..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -443,11 +449,11 @@ if st.session_state.current_strategy:
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 chat_prompt = f"""
-                你是 Coach Mars Chang。
+                你是 Coach Mars Chang (20年資深顧問)。
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格，回答精簡不重複。
+                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
