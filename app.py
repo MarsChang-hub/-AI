@@ -46,6 +46,7 @@ st.markdown("""
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
+    /* 表格優化 */
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
     .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 12px; text-align: center; white-space: nowrap; }
     .report-box th * { color: #ffffff !important; }
@@ -121,7 +122,7 @@ def load_kb():
     all_files = os.listdir('.')
     debug_log.append(f"📂 目錄: {all_files}")
 
-    # 1. Excel (xlsx/xlsm)
+    # 1. Excel
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     for f in excel_files:
         try:
@@ -228,7 +229,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
+        st.success(f"✅ {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -254,7 +255,7 @@ with st.sidebar:
             all_models.sort(key=lambda x: "1.5-flash" not in x.lower())
             
             st.markdown("### 🤖 模型選擇")
-            selected_model_name = st.selectbox("選擇大腦 (建議 Flash)", all_models, index=0)
+            selected_model_name = st.selectbox("選擇大腦", all_models, index=0)
             model = genai.GenerativeModel(selected_model_name)
             st.success(f"🟢 {selected_model_name}")
         except: st.error("連線失敗")
@@ -305,8 +306,10 @@ with st.form("client_form"):
             
     history_note = st.text_area("備註", value=data.get("history_note", ""), height=68)
     
+    # --- ★★★ 關鍵修改：新增警語 ★★★ ---
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>📄 建議書與方針</h3>", unsafe_allow_html=True)
-    uploaded_proposal = st.file_uploader("上傳建議書 PDF", type=["pdf"])
+    uploaded_proposal = st.file_uploader("上傳建議書 PDF (⚠️ 僅可上傳醫療彙整，勿傳整本建議書)", type=["pdf"])
+    st.caption("💡 提示：只上傳「彙整表」那一頁，AI 分析最準確且快速！")
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄", value=data.get("quotes", ""), height=68)
@@ -370,9 +373,8 @@ if save_btn or analyze_btn:
 
                 proposal_context = ""
                 if proposal_text:
-                    proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
+                    proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
 
-                # ★★★ Prompt：嚴格隔離來源，禁止自動補全 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
