@@ -121,7 +121,7 @@ def load_kb():
     all_files = os.listdir('.')
     debug_log.append(f"📂 目錄: {all_files}")
 
-    # 1. Excel (xlsx/xlsm)
+    # 1. Excel
     excel_files = [f for f in all_files if f.lower().endswith(('.xlsx', '.xlsm'))]
     for f in excel_files:
         try:
@@ -228,7 +228,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
+        st.success(f"✅ {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -373,7 +373,6 @@ if save_btn or analyze_btn:
                 if proposal_text:
                     proposal_context = f"\n【📄 上傳建議書內容 (After) - ***僅作為數據來源，不可虛構***】\n{proposal_text[:12000]}\n"
 
-                # ★★★ 關鍵 Prompt 修改：長照失能白名單 ★★★
                 prompt = f"""
                 你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
@@ -381,13 +380,12 @@ if save_btn or analyze_btn:
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
                 2. **去重複化**：已在「情境探索」講過的觀點，不要在「專屬規劃」重複贅述。
-                3. **嚴格數據來源 (Strict Data Source)**：
-                   - **[現有保障 (Before)]**：僅能來自用戶填寫的表單數據。
-                   - **[建議書補強 (After)]**：***絕對嚴格限制*** 僅能來自上方提供的 【📄 上傳建議書內容】。
-                   - **禁止幻覺**：如果建議書中沒有某個險種，[After] 欄位填「無」。
-                4. **對照基準**：表格請以 Mars 標準 ({mars_standards}) 為基準。
-                5. **壽險潛規則**：若需補充壽險，**嚴禁**推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
-                6. **長照失能嚴格規則**：針對「長照/失能」缺口，**僅能**推薦名稱包含「享放心、享安心、享順心、心安心」且具備「月給付」或「年給付」的商品。**絕對禁止**拿一般壽險（如鑫鑫向榮、傳富一生）充當長照險。
+                3. **嚴格數據來源**：
+                   - [現有保障] 來自表單。
+                   - [建議書補強] 來自上傳 PDF，若無則填「無」，禁止腦補。
+                4. **對照基準**：以 Mars 標準 ({mars_standards}) 為基準。
+                5. **壽險潛規則**：嚴禁推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
+                6. **長照失能白名單**：針對長照/失能，**僅能**推薦名稱包含**「享放心、享安心、享順心、心安心」**且具備月/年給付的商品。**絕對禁止**拿一般壽險充當長照險。
                 7. **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
@@ -396,7 +394,7 @@ if save_btn or analyze_btn:
                 現有保障：{current_coverage}
                 
                 {proposal_context}
-                【參考資料庫 (僅供查閱代號與條款細節，不可用於無中生有)】: 
+                【參考資料庫】: 
                 {kb_context}
 
                 【輸出架構】
@@ -449,12 +447,22 @@ if st.session_state.current_strategy:
                 kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
+                # ★★★ Chat Prompt 關鍵修改：植入長照白名單與壽險規則 ★★★
                 chat_prompt = f"""
                 你是 Coach Mars Chang (20年資深顧問)。
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
-                問題：{prompt}
-                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格。
+                
+                【系統強制規則 (System Rules)】
+                1. **長照失能白名單**：若使用者詢問「長照」或「失能」相關險種，**必須**直接推薦以下系列：**「享放心、享安心、享順心、心安心」**。請說明這些商品具備「月給付」或「年給付」功能。
+                2. **禁止事項**：**絕對禁止**說「手冊沒有資料」或推薦壽險充當長照。若手冊沒細節，請說「建議規劃『享』字輩的專屬長照險」。
+                3. **壽險規則**：僅推美元或鑫鑫向榮，不推台幣傳統壽險。
+                
+                對話歷史：
+                {st.session_state.chat_history}
+                
+                最新問題：{prompt}
+                任務：請回答問題，語氣溫暖專業，並嚴格遵守上述白名單規則。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
