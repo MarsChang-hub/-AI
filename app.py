@@ -35,7 +35,6 @@ st.markdown("""
     
     section[data-testid="stSidebar"] { background-color: #001a33; border-right: 1px solid #ff9933; }
     
-    /* 報告框 */
     .report-box {
         background-color: #ffffff !important; padding: 40px; border-radius: 8px;
         border-top: 8px solid var(--text-orange); margin-top: 20px;
@@ -47,11 +46,11 @@ st.markdown("""
     .report-box h3 { color: #e67e22 !important; font-weight: 700; margin-top: 25px;}
     .report-box strong { color: #c0392b !important; background-color: #fadbd8 !important; padding: 0 4px; }
     
-    /* 表格強制優化 */
+    /* 表格簡潔化 */
     .report-box table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; border: 1px solid #ddd; }
-    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 15px; text-align: left; }
+    .report-box th { background-color: #34495e !important; color: #ffffff !important; padding: 12px; text-align: center; white-space: nowrap; }
     .report-box th * { color: #ffffff !important; }
-    .report-box td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; }
+    .report-box td { padding: 12px; border-bottom: 1px solid #eeeeee; color: #2c3e50 !important; text-align: center; }
     .report-box tr:nth-child(even) { background-color: #f2f3f4; } 
 
     .mars-watermark {
@@ -119,6 +118,7 @@ def load_kb():
     full_text = ""
     count = 0
     debug_log = []
+    
     all_files = os.listdir('.')
     debug_log.append(f"📂 目錄: {all_files}")
 
@@ -229,7 +229,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📚 知識庫")
     if st.session_state.kb_count > 0:
-        st.success(f"✅ {st.session_state.kb_count} 份文件就緒")
+        st.success(f"✅ {st.session_state.kb_count} 份文件")
     else:
         st.info("ℹ️ 無文件")
     with st.expander("🔍 檢查"):
@@ -240,7 +240,6 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 模型選擇
     api_key = ""
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -287,28 +286,28 @@ with st.form("client_form"):
     with c6: job = st.text_input("職業", value=data.get("job", ""))
     with c7: interests = st.text_input("興趣", value=data.get("interests", ""))
 
-    st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>🛡️ 保障盤點 (基準值)</h3>", unsafe_allow_html=True)
     with st.expander("➕ 詳細保障額度", expanded=True):
         g1, g2, g3 = st.columns(3)
         with g1:
-            cov_daily = st.text_input("日額", value=data.get("cov_daily", ""))
-            cov_med_reim = st.text_input("實支", value=data.get("cov_med_reim", ""))
-            cov_surg = st.text_input("手術", value=data.get("cov_surg", ""))
-            cov_acc_reim = st.text_input("意外", value=data.get("cov_acc_reim", ""))
+            cov_daily = st.text_input("日額 (Mars基準:4000)", value=data.get("cov_daily", ""))
+            cov_med_reim = st.text_input("實支 (Mars基準:20萬)", value=data.get("cov_med_reim", ""))
+            cov_surg = st.text_input("手術 (Mars基準:1000)", value=data.get("cov_surg", ""))
+            cov_acc_reim = st.text_input("意外 (Mars基準:10萬)", value=data.get("cov_acc_reim", ""))
         with g2:
-            cov_cancer = st.text_input("癌症", value=data.get("cov_cancer", ""))
-            cov_major = st.text_input("重大", value=data.get("cov_major", ""))
-            cov_radio = st.text_input("放療", value=data.get("cov_radio", ""))
-            cov_chemo = st.text_input("化療", value=data.get("cov_chemo", ""))
+            cov_cancer = st.text_input("癌症 (Mars基準:50萬)", value=data.get("cov_cancer", ""))
+            cov_major = st.text_input("重大 (Mars基準:30萬)", value=data.get("cov_major", ""))
+            cov_radio = st.text_input("放療 (Mars基準:3000)", value=data.get("cov_radio", ""))
+            cov_chemo = st.text_input("化療 (Mars基準:3000)", value=data.get("cov_chemo", ""))
         with g3:
-            cov_ltc = st.text_input("長照", value=data.get("cov_ltc", ""))
-            cov_dis = st.text_input("失能", value=data.get("cov_dis", ""))
-            cov_life = st.text_input("壽險", value=data.get("cov_life", ""))
+            cov_ltc = st.text_input("長照 (Mars基準:3萬)", value=data.get("cov_ltc", ""))
+            cov_dis = st.text_input("失能 (Mars基準:3萬)", value=data.get("cov_dis", ""))
+            cov_life = st.text_input("壽險 (Mars基準:5倍年薪)", value=data.get("cov_life", ""))
             
     history_note = st.text_area("備註", value=data.get("history_note", ""), height=68)
     
     st.markdown("<h3 style='margin-top:15px; color:#ff9933;'>📄 建議書與方針</h3>", unsafe_allow_html=True)
-    uploaded_proposal = st.file_uploader("上傳建議書 PDF (AI 將進行健診對照)", type=["pdf"])
+    uploaded_proposal = st.file_uploader("上傳建議書 PDF", type=["pdf"])
     
     c8, c9 = st.columns(2)
     with c8: quotes = st.text_area("🗣️ 客戶語錄", value=data.get("quotes", ""), height=68)
@@ -351,49 +350,57 @@ if save_btn or analyze_btn:
             if not model: st.error("請連線")
             else:
                 life_path_num = calculate_life_path_number(birthday)
+                # 額度控管：若有上傳建議書，則知識庫減少讀取
                 is_flash = "flash" in model.model_name.lower()
                 kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
-                detailed_coverage = f"""
-                【現有保障 (Before)】日額:{cov_daily}, 實支:{cov_med_reim}, 癌:{cov_cancer}, 重大:{cov_major}, 長照:{cov_ltc}, 壽險:{cov_life}。備註:{history_note}
-                """
-                
+                # 準備 Mars 標準
+                mars_standards = {
+                    "日額": "4000元", "實支": "20萬", "手術": "1000", "意外": "10萬",
+                    "癌症": "50萬", "重大": "30萬", "放化療": "3000", "長照失能": "3萬", "壽險": "5倍年薪"
+                }
+
+                # 準備現有保障數據 (Before)
+                current_coverage = {
+                    "日額": cov_daily or "0", "實支": cov_med_reim or "0", "癌症": cov_cancer or "0",
+                    "重大": cov_major or "0", "長照": cov_ltc or "0", "壽險": cov_life or "0"
+                }
+
                 proposal_context = ""
                 if proposal_text:
                     proposal_context = f"\n【📄 上傳建議書內容 (After)】\n{proposal_text[:12000]}\n"
 
-                # ★★★ Prompt 關鍵修改：強制表格 + 壽險過濾 ★★★
+                # ★★★ Prompt 關鍵修正：精簡、去重複、基準對照 ★★★
                 prompt = f"""
-                你是「教練 Coach Mars Chang」，一位從業 20 年的資深保險顧問。
-                你的專長：SPIN 情境行銷、NLP 溝通、保單健診。
+                你是「教練 Coach Mars Chang」(20年資深顧問、SPIN、NLP)。
                 
                 【戰略最高指導原則】
                 請依據【銷售方針】："{target_product}"。
                 1. **絕對優先**：請針對此方針/商品進行推廣。
-                2. **對照查表**：請搜尋下方的【Excel 資料庫】，若有對應商品，請列出 [英文代號] 並引用理賠數據。
-                3. **壽險潛規則**：若需補充壽險建議，**只能**推薦「美元商品」或「鑫鑫向榮」。**嚴禁**推薦一般台幣傳統壽險。
-                4. **禁忌**：嚴禁提及保費金額。不透露資料來源。
+                2. **去重複化**：已在「情境探索」講過的觀點，不要在「專屬規劃」重複贅述。請直接進入商品優勢。
+                3. **簡潔表格**：保單健診請使用簡潔表格，僅列出【關鍵差異】，不要列出所有細項。
+                4. **對照基準**：表格請以 Mars 標準 ({mars_standards}) 為基準，標示 [現有不足] vs [建議書補強]。
+                5. **壽險潛規則**：若需補充壽險，**嚴禁**推薦台幣傳統壽險，僅推美元或鑫鑫向榮。
+                6. **禁忌**：嚴禁提及保費金額。不透露資料來源。
 
                 【客戶資料】
                 {client_name}, {life_path_num} 號人, {job}, 年收{income}萬
                 語錄："{quotes}"
-                {detailed_coverage}
+                現有保障：{current_coverage}
                 
                 {proposal_context}
-                
-                【知識庫 (Excel/TXT)】:
-                {kb_context}
+                【知識庫】: {kb_context}
 
                 【輸出架構】
-                1. **[💖 暖心開場 (NLP)]**
-                2. **[❓ SPIN 情境探索]**
-                3. **[📊 保單健診與缺口分析]** (***務必製作 Markdown 表格***：欄位包含 [保障項目]、[現有保障 (Before)]、[建議規劃 (After)]、[缺口分析])
-                4. **[🛡️ 專屬規劃建議]** (引用 Excel 數據)
-                5. **[💡 補充建議]** (請遵守壽險潛規則，僅推美元或鑫鑫向榮)
+                1. **[💖 暖心開場 (NLP)]** (快速建立連結，不要廢話)
+                2. **[❓ SPIN 情境探索]** (針對 "{target_product}"，引導痛點後直接過渡到解決方案)
+                3. **[📊 保單健診與缺口分析]** (***精簡表格***：欄位為 [檢核項目]、[Mars標準]、[現有保障(Before)]、[建議書補強(After)]、[狀態:✅/⚠️/🆘])
+                4. **[🛡️ 專屬規劃建議]** (引用 Excel/手冊的英文代號與理賠數據，強調如何達標 Mars 標準)
+                5. **[💡 補充建議]** (壽險/長照等，點到為止)
                 """
                 
-                with st.spinner("資深顧問 Mars 正在進行保單健診..."):
+                with st.spinner("資深顧問 Mars 正在進行精準分析..."):
                     try:
                         res = generate_with_retry(model, prompt)
                         st.session_state.current_strategy = res.text
@@ -432,15 +439,15 @@ if st.session_state.current_strategy:
         else:
             with st.spinner("教練思考中..."):
                 is_flash = "flash" in model.model_name.lower()
-                kb_limit = 35000 if is_flash else 5000
+                kb_limit = 35000 if is_flash else 4000
                 kb_context = st.session_state.kb_text[:kb_limit]
                 
                 chat_prompt = f"""
-                你是 Coach Mars Chang (20年資深顧問)。
+                你是 Coach Mars Chang。
                 參考資料：{kb_context}
                 報告：{st.session_state.current_strategy}
                 問題：{prompt}
-                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格，壽險只推美元或鑫鑫向榮。
+                任務：請針對「{target_product}」進行指導，維持 SPIN 與 NLP 風格，回答精簡不重複。
                 """
                 try:
                     res = generate_with_retry(model, chat_prompt)
